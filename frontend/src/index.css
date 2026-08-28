@@ -1,0 +1,141 @@
+@import url("https://api.fontshare.com/v2/css?f[]=cabinet-grotesk@500,700,800,900&f[]=satoshi@400,500,700&display=swap");
+@import url("https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&display=swap");
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --cf-bg: #f4f4f5;
+  --cf-surface: #ffffff;
+  --cf-ink: #09090b;
+  --cf-muted: #71717a;
+  --cf-border: #e4e4e7;
+}
+
+* {
+  -webkit-tap-highlight-color: transparent;
+}
+
+body {
+  margin: 0;
+  font-family: "Satoshi", -apple-system, BlinkMacSystemFont, sans-serif;
+  background: var(--cf-bg);
+  color: var(--cf-ink);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+.font-heading {
+  font-family: "Cabinet Grotesk", "Satoshi", sans-serif;
+}
+.font-mono-tech {
+  font-family: "IBM Plex Mono", monospace;
+}
+
+/* ---------- Leaflet overrides ---------- */
+.leaflet-container {
+  font-family: "Satoshi", sans-serif;
+  background: #e8eaed;
+}
+.leaflet-control-attribution {
+  font-size: 9px;
+  background: rgba(255, 255, 255, 0.6) !important;
+}
+.leaflet-bar a {
+  border-radius: 0 !important;
+}
+
+.cf-marker {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 999px;
+  border: 3px solid #fff;
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.25);
+  color: #fff;
+  transition: transform 0.18s ease;
+}
+.cf-marker:hover {
+  transform: scale(1.12);
+}
+.cf-marker svg {
+  width: 20px;
+  height: 20px;
+}
+.cf-pulse {
+  width: 18px;
+  height: 18px;
+  border-radius: 999px;
+  background: #0a84ff;
+  border: 3px solid #fff;
+  box-shadow: 0 0 0 rgba(10, 132, 255, 0.5);
+  animation: cf-pulse 2s infinite;
+}
+@keyframes cf-pulse {
+  0% {
+    box-shadow: 0 0 0 0 rgba(10, 132, 255, 0.5);
+  }
+  70% {
+    box-shadow: 0 0 0 14px rgba(10, 132, 255, 0);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(10, 132, 255, 0);
+  }
+}
+
+/* hide scrollbar for filter chips */
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+@keyframes cf-rise {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+.cf-rise {
+  animation: cf-rise 0.4s ease forwards;
+}
+
+@layer base {
+  :root {
+    --background: 0 0% 100%;
+    --foreground: 240 10% 3.9%;
+    --card: 0 0% 100%;
+    --card-foreground: 240 10% 3.9%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 240 10% 3.9%;
+    --primary: 240 6% 10%;
+    --primary-foreground: 0 0% 98%;
+    --secondary: 240 5% 96%;
+    --secondary-foreground: 240 6% 10%;
+    --muted: 240 5% 96%;
+    --muted-foreground: 240 4% 46%;
+    --accent: 240 5% 96%;
+    --accent-foreground: 240 6% 10%;
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 98%;
+    --border: 240 6% 90%;
+    --input: 240 6% 90%;
+    --ring: 240 6% 10%;
+    --radius: 0.5rem;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+}

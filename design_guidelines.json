@@ -1,0 +1,148 @@
+{
+  "theme": "light",
+  "typography": {
+    "headings": {
+      "fontFamily": "Cabinet Grotesk",
+      "weights": ["500", "700", "900"],
+      "letterSpacing": "tracking-tight",
+      "instruction": "Use Cabinet Grotesk for all headings. Never center headings unless for a specific visual balance reason. Use font-black for maximum impact on primary screen titles."
+    },
+    "body": {
+      "fontFamily": "Satoshi",
+      "weights": ["400", "500"],
+      "instruction": "Use Satoshi for body copy. Maintain leading-relaxed for readable descriptions."
+    },
+    "mono": {
+      "fontFamily": "IBM Plex Mono",
+      "instruction": "Use for Issue IDs, coordinates, and timestamps to give a technical/administrative feel."
+    },
+    "hierarchy": {
+      "h1": "text-4xl sm:text-5xl font-black tracking-tighter",
+      "h2": "text-2xl sm:text-3xl font-bold tracking-tight",
+      "h3": "text-xl sm:text-2xl font-semibold",
+      "h4": "text-lg sm:text-xl font-medium",
+      "body": "text-base leading-relaxed",
+      "small": "text-sm text-muted-foreground",
+      "label": "text-xs font-bold uppercase tracking-[0.2em]"
+    }
+  },
+  "colors": {
+    "archetype": "SWISS & HIGH-CONTRAST",
+    "base": {
+      "background": "#F4F4F5",
+      "surface": "#FFFFFF",
+      "text_primary": "#09090B",
+      "text_secondary": "#71717A",
+      "border": "#E4E4E7"
+    },
+    "primary": {
+      "main": "#09090B",
+      "hover": "#27272A",
+      "text": "#FFFFFF"
+    },
+    "status": {
+      "open": "#EF4444",
+      "in_progress": "#F59E0B",
+      "resolved": "#10B981"
+    },
+    "categories": {
+      "pothole": "#FF453A",
+      "garbage": "#FF9F0A",
+      "streetlight": "#0A84FF",
+      "other": "#8E8E93"
+    },
+    "instruction": "Strict adherence to high contrast. No generic full-screen gradients. Map elements must pop against the base gray/white UI. Do not use pure #000000, use #09090B. Ensure 4.5:1 contrast for all text."
+  },
+  "visual_enhancers": {
+    "surfaces": {
+      "glassmorphism": "Use 'backdrop-blur-xl bg-white/80 border border-white/20 shadow-sm' for floating map controls (filter chips, locate me button, header). Never use 100% transparent backgrounds over the map.",
+      "neumorphism": "Not applicable for this context. Stick to sharp, flat cards.",
+      "borders": "1px solid #E4E4E7 for structural elements. 2px solid #09090B for active states."
+    },
+    "shadows": {
+      "ambient": "shadow-[0_8px_30px_rgb(0,0,0,0.04)]",
+      "floating": "shadow-[0_20px_40px_rgb(0,0,0,0.08)]"
+    },
+    "radius": {
+      "containers": "rounded-2xl",
+      "buttons": "rounded-full",
+      "chips": "rounded-full",
+      "cards": "rounded-xl"
+    }
+  },
+  "components": {
+    "buttons": "Pill-shaped (rounded-full). Primary buttons must be solid #09090B with white text. Apply hover states with slight opacity changes or translation (-translate-y-0.5).",
+    "inputs": "Shadcn/UI customized. Solid backgrounds (bg-gray-100), no borders by default, 2px ring on focus (ring-black).",
+    "map_markers": "Minimum 44x44px touch targets. Colored by category. Use distinct SVGs/icons inside markers, not just dots.",
+    "bottom_sheet": "Use Vaul/Drawer for 'Report Issue' wizard and 'Issue Details'. Must have a drag handle (w-12 h-1.5 bg-gray-300 rounded-full).",
+    "filter_chips": "Horizontal scrollable list. Glassmorphic background when floating over map. Selected state uses solid black background.",
+    "admin_table": "Dense padding (p-2). Sentence case headers. Status dots (6px) next to labels. Use IBM Plex Mono for Issue IDs.",
+    "instruction": "Customize Shadcn/UI heavily. Do not use default Vercel-like borders. Override tablist height with 'h-auto'."
+  },
+  "grids_and_layouts": {
+    "mobile_map": "Full viewport (h-screen w-screen). Floating UI elements must be positioned absolute with generous padding (p-4 to p-6) from screen edges to avoid safe areas.",
+    "admin_dashboard": "Sidebar 240px width. Main content area uses 12-column grid. Grid gaps must be tight (gap-4 or gap-6).",
+    "spacing": "Use p-6 or p-8 for modal/drawer interiors. Avoid cramped content. Always add bottom padding (pb-24) to lists so the floating CTA doesn't cover content."
+  },
+  "motion": {
+    "transitions": "Use 'transition: transform 0.2s ease, opacity 0.2s ease'. NEVER use 'transition: all'.",
+    "stagger": "List items in 'My Issues' and Admin table must stagger in.",
+    "bottom_sheet": "Smooth slide-up animation. Ensure 'prefers-reduced-motion' is respected."
+  },
+  "accessibility": {
+    "touch_targets": "Minimum 44x44px for all map markers, filter chips, and icon buttons.",
+    "focus": "All interactive elements must have a visible focus ring (focus:ring-2 focus:ring-offset-2 focus:ring-black).",
+    "test_ids": "All interactive elements MUST include 'data-testid' attribute (e.g., 'report-issue-fab', 'category-filter-chip', 'submit-report-button')."
+  },
+  "media": {
+    "image_urls": {
+      "pothole": {
+        "url": "https://images.unsplash.com/photo-1779179015285-120aaa822b1b?crop=entropy&cs=srgb&fm=jpg&ixid=M3w3NTY2NzR8MHwxfHNlYXJjaHwxfHxwb3Rob2xlJTIwb24lMjBjaXR5JTIwc3RyZWV0fGVufDB8fHx8MTc4Nzk0NTI0MXww&ixlib=rb-4.1.0&q=85",
+        "description": "Broken, uneven brick sidewalk pothole",
+        "category": "Issue Detail Hero - Pothole"
+      },
+      "garbage": {
+        "url": "https://images.unsplash.com/photo-1779226421621-b61bb14fff95?crop=entropy&cs=srgb&fm=jpg&ixid=M3w8NTYxOTB8MHwxfHNlYXJjaHwzfHxnYXJiYWdlJTIwYmFncyUyMG9uJTIwc2lkZXdhbGt8ZW58MHx8fHwxNzg3OTQ1MjQxfDA&ixlib=rb-4.1.0&q=85",
+        "description": "Bags of garbage line a building along a street",
+        "category": "Issue Detail Hero - Garbage"
+      },
+      "streetlight": {
+        "url": "https://images.unsplash.com/photo-1594028235752-10a0cb865c7c?crop=entropy&cs=srgb&fm=jpg&ixid=M3w3NDk1Nzh8MHwxfHNlYXJjaHwxfHxicm9rZW4lMjBzdHJlZXQlMjBsaWdodHxlbnwwfHx8fDE3ODc5NDUyNDl8MA&ixlib=rb-4.1.0&q=85",
+        "description": "Black street light",
+        "category": "Issue Detail Hero - Streetlight"
+      }
+    }
+  },
+  "libraries": {
+    "map": "leaflet, react-leaflet",
+    "icons": "lucide-react (Standard clean UI) and @phosphor-icons/react (Duotone map markers)",
+    "motion": "framer-motion",
+    "toasts": "sonner",
+    "bottom_sheet": "vaul",
+    "routing": "react-router-dom"
+  },
+  "instructions_to_main_agent": [
+    "Install required dependencies: leaflet, react-leaflet, vaul, framer-motion, sonner, @phosphor-icons/react",
+    "Generate pages for Citizen App (Map Home, Report Wizard, Issue Detail, My Issues) and Admin Dashboard (/admin).",
+    "Citizen App MUST be mobile-first. Use full-screen height (h-[100dvh]) to account for mobile browser chrome.",
+    "Implement the Report Issue wizard as a Vaul bottom sheet or multi-step modal.",
+    "Implement a robust 'data-testid' strategy across all actionable components.",
+    "Map UI must feel deeply integrated, not like an iframe. Float controls over the map with glassmorphic backgrounds.",
+    "DO NOT add any login or sign-up screens. The system is entirely open access as per user requirements.",
+    "Reverse geocoding can be mocked initially but structure the UI to show a 'Locating...' state followed by a plain text address confirmation.",
+    "For the admin dashboard, implement the North Star Metric (e.g., 'Total Open Issues') in the top left, followed by a dense data table for issue management."
+  ],
+  "UNIVERSAL_GUIDELINES_FOR_MAIN_AGENT": [
+    "You tend to converge toward generic, 'on distribution' outputs. Avoid this: make creative, distinctive frontends.",
+    "Do not use dark colors as gradients.",
+    "Don't make generic centered layouts. Create depth through layered design elements with z-index hierarchy.",
+    "Use glass-morphism effects with backdrop filters (12-24px blur).",
+    "You MUST NOT apply universal transition (e.g., 'transition: all').",
+    "You MUST NOT center align the app container (.App { text-align: center; }).",
+    "Always use modern button styles like pill-shaped.",
+    "NEVER use AI assistant Emoji characters (🤖🧠💭) for icons.",
+    "Every interaction needs micro-animations - hover states, transitions.",
+    "Use 2-3x more spacing than feels comfortable.",
+    "NEVER use placeholder URLs for images."
+  ]
+}

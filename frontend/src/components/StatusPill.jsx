@@ -1,8 +1,10 @@
 import React from "react";
+import { useTranslation } from "react-i18next";
 import { STATUS } from "@/lib/constants";
 import { cn } from "@/lib/utils";
 
 export function StatusPill({ status, className }) {
+  const { t } = useTranslation();
   const s = STATUS[status] || STATUS.open;
   return (
     <span
@@ -14,7 +16,7 @@ export function StatusPill({ status, className }) {
       style={{ backgroundColor: `${s.color}1A`, color: s.color }}
     >
       <span className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: s.color }} />
-      {s.label}
+      {t(`status.${status}`, s.label)}
     </span>
   );
 }

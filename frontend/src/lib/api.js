@@ -3,7 +3,7 @@ import axios from "axios";
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
 export const API = `${BACKEND_URL}/api`;
 
-export const api = axios.create({ baseURL: API });
+export const api = axios.create({ baseURL: API, withCredentials: true });
 
 export const buildPhotoUrl = (photoPath) => `${API}/files/${photoPath}`;
 
@@ -13,7 +13,12 @@ export async function uploadPhoto(file) {
   const { data } = await api.post("/upload", form, {
     headers: { "Content-Type": "multipart/form-data" },
   });
-  return data.photo_path;
+  return data; // { photo_path?, relevant, reason, flagged_ai_generated }
+}
+
+export async function reverseGeocode(lat, lng) {
+  const { data } = await api.get("/geocode/reverse", { params: { lat, lng } });
+  return data.address;
 }
 
 export async function createIssue(payload) {
@@ -54,4 +59,19 @@ export async function updateCategory(id, category) {
 export async function fetchMetrics() {
   const { data } = await api.get("/admin/metrics");
   return data;
+}
+
+// ---- auth ----
+export async function getMe() {
+  const { data } = await api.get("/auth/me");
+  return data;
+}
+
+export async function postSession(sessionId) {
+  const { data } = await api.post("/auth/session", {}, { headers: { "X-Session-ID": sessionId } });
+  return data;
+}
+
+export async function logout() {
+  await api.post("/auth/logout");
 }

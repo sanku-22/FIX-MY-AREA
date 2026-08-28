@@ -37,6 +37,13 @@ Build **CivicFix**, a mobile-first civic issue reporting web app. Citizens repor
 - [x] 3 seeded demo issues (pothole/garbage/streetlight).
 - [x] E2E tested: 18/18 backend, 100% frontend flows.
 
+## Implemented — Iteration 2 (2026-06)
+- [x] **Emergent Google Auth (optional login)**: `/api/auth/session`, `/api/auth/me`, `/api/auth/logout`; cookie + Bearer session; identity attached to reports/comments when logged in. Owner/admin: sinpi3323@gmail.com. TopControls sign-in/avatar UI.
+- [x] **i18n (English + Hindi)**: react-i18next, en.json/hi.json, language toggle persisted in localStorage; all static UI localized, user content left untranslated.
+- [x] **AI photo verification**: `/api/upload` runs Emergent LLM vision (gpt-5.4) — hard-rejects non-civic photos, soft-flags AI-generated images (`flagged_ai_generated`) surfaced in admin (AI? badge + metric + `?flagged=true` filter).
+- [x] **Server-side reverse geocoding**: `/api/geocode/reverse` (Nominatim with User-Agent).
+- [x] E2E tested: 27/27 backend, 100% frontend flows.
+
 ## Backlog (prioritized)
 - **P1**: Automatic photo-based category detection (image classification) — data model ready.
 - **P1**: WebSocket real-time updates (currently 15s polling).

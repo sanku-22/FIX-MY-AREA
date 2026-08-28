@@ -1,17 +1,20 @@
 import React from "react";
 import { NavLink, useLocation } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 import { Map, ListChecks, ShieldCheck } from "lucide-react";
 import { cn } from "@/lib/utils";
 
-const items = [
-  { to: "/", label: "Map", icon: Map, testid: "nav-map" },
-  { to: "/my-issues", label: "My Issues", icon: ListChecks, testid: "nav-my-issues" },
-  { to: "/admin", label: "Admin", icon: ShieldCheck, testid: "nav-admin" },
-];
-
 export default function BottomNav() {
   const loc = useLocation();
+  const { t } = useTranslation();
   if (loc.pathname.startsWith("/admin")) return null;
+
+  const items = [
+    { to: "/", label: t("nav.map"), icon: Map, testid: "nav-map" },
+    { to: "/my-issues", label: t("nav.myIssues"), icon: ListChecks, testid: "nav-my-issues" },
+    { to: "/admin", label: t("nav.admin"), icon: ShieldCheck, testid: "nav-admin" },
+  ];
+
   return (
     <nav className="fixed bottom-0 left-0 right-0 z-[1100] mx-auto flex max-w-lg items-center justify-around border-t border-[#e4e4e7] bg-white/90 px-4 pb-[max(env(safe-area-inset-bottom),10px)] pt-2 backdrop-blur-xl">
       {items.map((it) => {

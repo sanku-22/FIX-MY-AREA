@@ -1,8 +1,10 @@
 import React from "react";
+import { useTranslation } from "react-i18next";
 import { FILTER_CHIPS } from "@/lib/constants";
 import { cn } from "@/lib/utils";
 
 export default function FilterChips({ active, onChange }) {
+  const { t } = useTranslation();
   return (
     <div className="no-scrollbar flex gap-2 overflow-x-auto px-1 py-1">
       {FILTER_CHIPS.map((chip) => {
@@ -19,7 +21,7 @@ export default function FilterChips({ active, onChange }) {
                 : "bg-white/80 text-[#09090b] backdrop-blur-xl border border-white/40 hover:-translate-y-0.5",
             )}
           >
-            {chip.label}
+            {t(`filters.${chip.key}`)}
           </button>
         );
       })}

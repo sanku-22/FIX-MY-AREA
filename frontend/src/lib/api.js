@@ -32,6 +32,10 @@ export async function reverseGeocode(lat, lng) {
   const { data } = await api.get("/geocode/reverse", { params: { lat, lng } });
   return data; // { address, state, district }
 }
+export async function searchGeocode(q) {
+  const { data } = await api.get("/geocode/search", { params: { q } });
+  return data; // [{ label, lat, lng }]
+}
 
 // ---- photos / issues ----
 export async function uploadPhoto(file) {

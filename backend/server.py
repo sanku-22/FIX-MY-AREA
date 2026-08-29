@@ -147,6 +147,29 @@ def reverse_geocode(lat: float, lng: float) -> dict:
         return {"address": f"Lat {lat:.5f}, Lng {lng:.5f}", "state": "", "district": ""}
 
 
+def search_geocode(q: str, limit: int = 5) -> list:
+    try:
+        r = requests.get("https://nominatim.openstreetmap.org/search",
+                         params={"format": "jsonv2", "q": q, "addressdetails": 1,
+                                 "limit": limit, "countrycodes": "in"},
+                         headers={"User-Agent": NOMINATIM_UA, "Accept": "application/json"}, timeout=15)
+        r.raise_for_status()
+        results = []
+        for item in r.json():
+            try:
+                results.append({
+                    "label": item.get("display_name", ""),
+                    "lat": float(item["lat"]),
+                    "lng": float(item["lon"]),
+                })
+            except (KeyError, ValueError):
+                continue
+        return results
+    except Exception as e:
+        logger.error(f"Geocode search failed: {e}")
+        return []
+
+
 # ---------------- Models ----------------
 class PhoneStart(BaseModel):
     phone: str
@@ -283,6 +306,14 @@ async def root():
 @api_router.get("/geocode/reverse")
 async def geocode_reverse(lat: float, lng: float):
     return reverse_geocode(lat, lng)
+
+
+@api_router.get("/geocode/search")
+async def geocode_search(q: str):
+    q = (q or "").strip()
+    if len(q) < 3:
+        return []
+    return await asyncio.to_thread(search_geocode, q)
 
 
 # ---------------- Citizen phone auth ----------------

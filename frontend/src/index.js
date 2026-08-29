@@ -1,7 +1,6 @@
 import React from "react";
 import ReactDOM from "react-dom/client";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import "leaflet/dist/leaflet.css";
 import "@/index.css";
 import "@/i18n";
 import App from "@/App";

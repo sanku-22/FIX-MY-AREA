@@ -1,57 +1,38 @@
-# CivicFix — Product Requirements Document
+# Fix My Area — PRD
 
-## Original Problem Statement
-Build **CivicFix**, a mobile-first civic issue reporting web app. Citizens report civic issues (potholes, garbage, broken streetlights, etc.) with a photo + GPS location and see all reports on a shared live map. Goal: file a report in under 30 seconds. Admin/municipal staff manage reports (status, category) via a dashboard.
+## Problem Statement
+A web app for citizens to report civic issues (potholes, garbage, streetlights, water, etc.) with a photo, GPS location, and a live map. Multi-language (English/Hindi), phone-based citizen auth, and a separate admin portal with RBAC + 2FA.
 
-## User Choices (locked)
-- **No login/signup anywhere** — fully open access (browse + report + confirm + comment).
-- **Photo storage**: Emergent object storage.
-- **Reverse geocoding**: Nominatim / OpenStreetMap (free, no key).
-- **Auto-categorization**: keyword detection from the description.
-- Frontend-first focus.
+## Tech Stack
+- Frontend: React 19, Tailwind, i18next, MapLibre GL JS 4.7 + OpenFreeMap (Liberty style), supercluster
+- Backend: FastAPI, Motor (MongoDB), PyOTP
+- Integrations: Twilio Verify (demo mode), Google Gemini image verify (Emergent LLM fallback), Nominatim geocoding (server-side)
 
 ## Architecture
-- **Frontend**: React 19 + react-router-dom, react-leaflet + Leaflet (OSM tiles), vaul (bottom sheet), framer-motion, sonner, Tailwind. Fonts: Cabinet Grotesk (headings), Satoshi (body), IBM Plex Mono (IDs/coords).
-- **Backend**: FastAPI + Motor (MongoDB). Object storage via `storage.py` (Emergent, EMERGENT_LLM_KEY).
-- **DB**: MongoDB. Single `issues` collection with embedded `timeline` and `comments` arrays.
+- /app/backend: server.py (routes/DB), gemini_verify.py, phone_auth.py, security.py
+- /app/frontend: components (MapView.jsx, ReportWizard.jsx, ...), pages (MapHome.jsx, AdminPortal.jsx), i18n, lib (api.js)
 
-## User Personas
-1. **Citizen** — reports issues, browses map, confirms/upvotes, comments, tracks own reports in My Issues.
-2. **Admin / Municipal Staff** — reviews all reports, changes status/category, adds internal notes, views metrics.
+## Key Endpoints
+- Auth: POST /api/auth/phone/start|verify, /api/auth/profile, GET /api/auth/me
+- Admin: POST /api/admin/login, /api/admin/2fa/verify (+ RBAC data routes)
+- Issues: POST /api/upload, POST /api/issues, GET /api/issues, POST /api/issues/{id}/confirm
+- Geocode: GET /api/geocode/reverse, GET /api/geocode/search (Nominatim forward, IN, min 3 chars)
 
-## Core Requirements (static)
-- Full-screen Leaflet map, colored pins by category with status-colored ring, filter chips, locate-me, list toggle.
-- 3-step report wizard: Photo (required) → Location (draggable pin + Nominatim address confirm popup) → optional description → submit.
-- Issue detail: hero photo, status pill, ID, category, description, address, Confirm (idempotent per device), Share, status timeline, comments.
-- My Issues (per-device via localStorage device id), sortable.
-- Admin dashboard `/admin`: metrics, filterable table, edit panel (status/category/note).
+## Implemented
+- 2026-06: Full MVP (auth, wizard, admin, AI verify, i18n) — prior sessions
+- 2026-06 (this session): **Migrated map Leaflet → MapLibre GL JS + OpenFreeMap Liberty.**
+  - MapView.jsx rewritten with proper lifecycle (useRef/useEffect + map.remove() cleanup, ResizeObserver).
+  - Marker clustering via supercluster (.cf-cluster), custom SVG status pins (.cf-pin), user dot (.cf-userdot).
+  - Click-to-place + draggable pin; recenter/locate-me; filter-based dark mode (CSS filter on .maplibregl-canvas only).
+  - NEW debounced (500ms) Nominatim location search in ReportWizard Step 2 (backend GET /api/geocode/search).
+  - Verified via testing agent iteration_6: 11/11 frontend behaviors pass, zero re-init/memory-leak errors.
 
-## Implemented (2026-06)
-- [x] Full backend API: upload/files, issues CRUD, confirm (idempotent), comments, status update (with timeline), category update, admin metrics. Keyword auto-categorization.
-- [x] Object storage integration for photos (verified round-trip).
-- [x] Map/Home with pins, filter chips, FAB, locate-me, nearby-list bottom sheet, 15s polling.
-- [x] 3-step report wizard with real photo upload + Nominatim reverse geocoding + address confirm popup.
-- [x] Issue Detail with confirm/share/comments/timeline.
-- [x] My Issues (device-scoped) with sort.
-- [x] Admin dashboard with metrics, filters, and edit panel.
-- [x] 3 seeded demo issues (pothole/garbage/streetlight).
-- [x] E2E tested: 18/18 backend, 100% frontend flows.
+## Backlog
+- P2: Admin Review Queue screen for photos that fail AI verification
+- P2: Auto category selection from Gemini JSON output
+- P3 (cosmetic): Brand title wraps on <400px when logged-in user pill present (TopControls)
+- P3: Diff markers by id instead of full re-render on moveend (perf for large datasets)
 
-## Implemented — Iteration 2 (2026-06)
-- [x] **Emergent Google Auth (optional login)**: `/api/auth/session`, `/api/auth/me`, `/api/auth/logout`; cookie + Bearer session; identity attached to reports/comments when logged in. Owner/admin: sinpi3323@gmail.com. TopControls sign-in/avatar UI.
-- [x] **i18n (English + Hindi)**: react-i18next, en.json/hi.json, language toggle persisted in localStorage; all static UI localized, user content left untranslated.
-- [x] **AI photo verification**: `/api/upload` runs Emergent LLM vision (gpt-5.4) — hard-rejects non-civic photos, soft-flags AI-generated images (`flagged_ai_generated`) surfaced in admin (AI? badge + metric + `?flagged=true` filter).
-- [x] **Server-side reverse geocoding**: `/api/geocode/reverse` (Nominatim with User-Agent).
-- [x] E2E tested: 27/27 backend, 100% frontend flows.
-
-## Backlog (prioritized)
-- **P1**: Automatic photo-based category detection (image classification) — data model ready.
-- **P1**: WebSocket real-time updates (currently 15s polling).
-- **P2**: Image compression/resize on upload to shrink payloads.
-- **P2**: Pagination on `GET /api/issues` for scale.
-- **P2**: Distinct "Acknowledged" top-level status in citizen UI.
-- **P2**: Area/date-range filters on admin dashboard.
-
-## Next Tasks
-- Add lightweight auth if spam becomes an issue (currently open by design).
-- Photo classification extension point in `classify()` / issue creation.
+## Mocked / Demo
+- Twilio OTP: DEMO mode (demo_code returned in API response)
+- Gemini: falls back to Emergent LLM key when GEMINI_API_KEY absent

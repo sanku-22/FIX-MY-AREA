@@ -84,17 +84,41 @@ body {
   }
 }
 
-/* ---------- Leaflet ---------- */
-.leaflet-container {
+/* ---------- MapLibre ---------- */
+.maplibregl-map {
   font-family: "Public Sans", sans-serif;
   background: #eceae3;
 }
-.leaflet-control-attribution {
+.maplibregl-ctrl-attrib {
   font-size: 9px;
-  background: rgba(255, 255, 255, 0.65) !important;
+  background: rgba(255, 255, 255, 0.6) !important;
 }
-.leaflet-bar a {
-  border-radius: 0 !important;
+.maplibregl-ctrl-attrib a {
+  color: #6b6b70;
+}
+/* Dark mode: invert only the tile canvas, leave HTML markers untouched */
+.cf-map-dark .maplibregl-canvas {
+  filter: invert(1) hue-rotate(180deg) brightness(0.92) contrast(0.92) saturate(0.8);
+}
+.cf-cluster {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 40px;
+  height: 40px;
+  padding: 0 6px;
+  border-radius: 999px;
+  background: var(--primary);
+  color: #fff;
+  font-weight: 800;
+  font-size: 14px;
+  border: 3px solid #fff;
+  box-shadow: 0 6px 16px rgba(31, 122, 114, 0.4);
+  cursor: pointer;
+  transition: transform 0.18s ease;
+}
+.cf-cluster:hover {
+  transform: scale(1.08);
 }
 
 .cf-pin {

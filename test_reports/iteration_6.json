@@ -1,0 +1,31 @@
+{
+  "summary": "Iteration 6 — E2E frontend validation of the Leaflet→MapLibre GL migration. All map behaviors verified on the deployed preview URL (mobile viewport 390x844): (1) Home MapLibre map renders with OpenFreeMap Liberty tiles (canvas.maplibregl-canvas + [data-testid=maplibre-container] present), issue pins (.cf-pin) and a numbered cluster (.cf-cluster '25') are visible over the Gurgaon default center; (2) clicking the '25' cluster easeTo-zooms in and the cluster expands into more pins/smaller clusters; (3) clicking an individual .cf-pin navigates to /issue/{uuid}; (4) all six filter chips (all/pothole/garbage/streetlight/water/other) toggle without JS errors; (5) locate-me-btn clicks without error; (6) phone OTP sign-in in DEMO mode works end-to-end (demo_code returned in /api/auth/phone/start, new-user name step handled); (7) Report wizard opens from report-issue-fab, /tmp/civic.jpg (loremflickr pothole photo) is accepted by AI verify in ~5s (photo-next-btn enabled, no verify-error); (8) Step 2 wizard MapLibre map renders inside the drawer with a draggable teal pin (.cf-pin) and the mono coord readout '28.63177, 77.21938' updates after selecting a Nominatim search result; (9) NEW location search: typing 'connaught place delhi' into location-search-input debounces 500ms, shows [data-testid=location-search-results] with one result 'Connaught Place, New Delhi, Delhi, 110001, India', clicking location-search-result-0 pans the map and repositions the draggable pin (verified by both the screenshot and coord readout showing Connaught Place coordinates); (10) Confirm Location triggers reverseGeocode → resolved-address shows 'Inner Circle, Kashmiri Market, Connaught Place, New Delhi, Delhi, 110001, India' → address-confirm-btn advances to Step 3; (11) submit-report-btn creates the issue (home 'issues reported nearby' counter incremented from 27→28); (12) opening/closing the wizard 4 consecutive times produces ZERO maplibre-gl init/re-init/memory-leak errors (map.remove() cleanup in useEffect return works correctly).",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Home top brand card", "issues": ["When the logged-in user's name pill is added next to EN/हि language toggle on 390px width, the 'Fix My Area' title wraps to three lines ('Fix' / 'My' / 'Area'). Consider truncating the user pill or shrinking header padding at <400px so the brand stays on one line."]}
+    ]
+  },
+  "test_report_links": ["/app/test_reports/iteration_6.json"],
+  "action_items": [
+    "(Optional/low-priority) Fix brand title wrapping in TopControls header when logged-in user pill is present on mobile <400px.",
+    "(Optional) In MapView.jsx the console shows harmless 'Expected value to be of type number, but found null instead' warnings — likely from an issue row with null lat/lng slipping past the filter. The filter already guards on !=null, but consider also filtering NaN and enforcing typeof==='number' before feeding supercluster."
+  ],
+  "critical_code_review_comments": [
+    "MapView.jsx renderMarkers rebuilds every 'moveend' — for large issue counts this will thrash the DOM. Consider diffing markers by feature id or using a Symbol layer with an image sprite. Not blocking for MVP.",
+    "MapView.jsx theme dark-mode uses a CSS filter over raster tiles (per user's 2a choice) — good, but overlay markers (.cf-pin, .cf-cluster, .cf-userdot) will also be filter-inverted unless the .cf-map-dark rule scopes the filter to the canvas only. Verify in dark theme once implemented.",
+    "ReportWizard.jsx searchGeocode debounce is fine (500ms) but no min-length reset on step change other than searchQ='' inside reset(). If user goes back from Step 2 to Step 1 and returns, stale results could briefly show; consider clearing searchResults on step transitions too.",
+    "ReportWizard.jsx: selectResult(r) sets searchQ to the first two comma-parts of the label — for short single-part labels this may look odd. Minor UX.",
+    "MapView.jsx: the init useEffect intentionally has [] deps and disables eslint — correct pattern for map lifecycle, but note that center/zoom props changes AFTER mount are only honored via draggableMarker/recenterKey paths. Document this behavior."
+  ],
+  "updated_files": ["/app/test_reports/iteration_6.json"],
+  "success_rate": {"backend": "not tested this iteration (per request)", "frontend": "100% of listed features (11/11 behaviors verified)"},
+  "test_credentials": "Citizen: DEMO phone OTP — any E.164 IN number (e.g. +91987650XXXX). demo_code returned in POST /api/auth/phone/start response body. New numbers auto-register then prompt for name.",
+  "seed_data_creation": "Created 1 real issue via full wizard flow using /tmp/civic.jpg (loremflickr pothole) at Connaught Place, New Delhi (28.63177, 77.21938). Description 'TEST: pothole on the road'. Also created 2 disposable citizen accounts for the sign-in + open/close cycle tests.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "MapLibre migration is FULLY WORKING on the deployed preview. Key selectors: [data-testid=maplibre-container] wraps the map, canvas is canvas.maplibregl-canvas, issue pins are .cf-pin, clusters are .cf-cluster (text = count), user location is .cf-userdot. Wizard Step 2 search: location-search-input, location-search-results, location-search-result-{i}. Only cosmetic issue left is brand title wrapping when logged in on narrow viewports. If dark-mode is tested next, verify markers don't get inverted by the tile CSS filter (see code review comment #2). AI verification via EMERGENT_LLM_KEY fallback (openai gpt-5.4) accepts a loremflickr pothole in ~5s.",
+  "rca of the issue": "N/A — no bug reported this iteration. Task was migration validation; migration passes all 9 requested test cases plus the 4-cycle memory-leak check."
+}

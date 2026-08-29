@@ -1,10 +1,10 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { Drawer } from "vaul";
 import { useTranslation } from "react-i18next";
-import { Camera, MapPin, Check, Pencil, Loader2, ArrowLeft, X, ImagePlus, ShieldCheck, ShieldAlert, CheckCircle2 } from "lucide-react";
+import { Camera, MapPin, Check, Pencil, Loader2, ArrowLeft, X, ImagePlus, ShieldCheck, ShieldAlert, CheckCircle2, Search } from "lucide-react";
 import { toast } from "sonner";
 import MapView from "@/components/MapView";
-import { uploadPhoto, createIssue, reverseGeocode } from "@/lib/api";
+import { uploadPhoto, createIssue, reverseGeocode, searchGeocode } from "@/lib/api";
 import { DEFAULT_CENTER } from "@/lib/constants";
 
 export default function ReportWizard({ open, onOpenChange, userLocation, onCreated }) {
@@ -16,6 +16,9 @@ export default function ReportWizard({ open, onOpenChange, userLocation, onCreat
   const [verifying, setVerifying] = useState(false);
   const [verifyError, setVerifyError] = useState("");
   const [pin, setPin] = useState(null);
+  const [searchQ, setSearchQ] = useState("");
+  const [searchResults, setSearchResults] = useState([]);
+  const [searching, setSearching] = useState(false);
   const [address, setAddress] = useState("");
   const [geoState, setGeoState] = useState("");
   const [geoDistrict, setGeoDistrict] = useState("");
@@ -31,7 +34,27 @@ export default function ReportWizard({ open, onOpenChange, userLocation, onCreat
     setVerifying(false); setVerifyError(""); setPin(null); setAddress(""); setGeoState(""); setGeoDistrict("");
     setShowAddrPopup(false); setConfirmedLocation(false); setDescription("");
     setSubmitting(false); setSuccess(false);
+    setSearchQ(""); setSearchResults([]); setSearching(false);
   }, []);
+
+  useEffect(() => {
+    if (step !== 2) return;
+    const q = searchQ.trim();
+    if (q.length < 3) { setSearchResults([]); setSearching(false); return; }
+    setSearching(true);
+    const h = setTimeout(async () => {
+      try { setSearchResults(await searchGeocode(q)); }
+      catch { setSearchResults([]); }
+      finally { setSearching(false); }
+    }, 500);
+    return () => clearTimeout(h);
+  }, [searchQ, step]);
+
+  const selectResult = (r) => {
+    setPin([r.lat, r.lng]);
+    setSearchResults([]);
+    setSearchQ(r.label.split(",").slice(0, 2).join(",").trim());
+  };
 
   useEffect(() => {
     if (open) { reset(); setPin(userLocation || DEFAULT_CENTER); }
@@ -181,6 +204,34 @@ export default function ReportWizard({ open, onOpenChange, userLocation, onCreat
                     <p className="text-xs font-bold uppercase tracking-[0.16em] text-[#1f7a72]">{t("wizard.step2")}</p>
                     <h3 className="mt-1.5 font-heading text-xl font-bold">{t("wizard.pinSpot")}</h3>
                     <p className="mt-1.5 text-sm leading-relaxed text-[#6b6b70]">{t("wizard.dragHint")}</p>
+                    <div className="relative mt-4">
+                      <div className="flex items-center gap-2 rounded-xl border border-[#e6e3dc] bg-white px-3.5 py-3 focus-within:border-[#1f7a72] focus-within:shadow-[0_0_0_3px_var(--primary-050)]">
+                        <Search className="h-4 w-4 shrink-0 text-[#6b6b70]" />
+                        <input
+                          data-testid="location-search-input"
+                          value={searchQ}
+                          onChange={(e) => setSearchQ(e.target.value)}
+                          placeholder={t("wizard.searchAddress")}
+                          className="w-full bg-transparent text-sm outline-none placeholder:text-[#9a9a9f]"
+                        />
+                        {searching && <Loader2 className="h-4 w-4 shrink-0 animate-spin text-[#6b6b70]" />}
+                      </div>
+                      {searchResults.length > 0 && (
+                        <div data-testid="location-search-results" className="absolute left-0 right-0 top-full z-[1400] mt-1.5 max-h-52 overflow-y-auto rounded-xl border border-[#e6e3dc] bg-white shadow-[0_10px_30px_rgba(42,42,44,0.14)]">
+                          {searchResults.map((r, i) => (
+                            <button
+                              key={i}
+                              data-testid={`location-search-result-${i}`}
+                              onClick={() => selectResult(r)}
+                              className="flex w-full items-start gap-2 border-b border-[#f0eee8] px-3.5 py-2.5 text-left last:border-0 hover:bg-[#f6f5f1]"
+                            >
+                              <MapPin className="mt-0.5 h-4 w-4 shrink-0 text-[#1f7a72]" />
+                              <span className="text-sm leading-snug text-[#2a2a2c]">{r.label}</span>
+                            </button>
+                          ))}
+                        </div>
+                      )}
+                    </div>
                     <div className="mt-4 h-64 w-full overflow-hidden rounded-2xl border border-[#e6e3dc]">
                       {pin && <MapView center={pin} zoom={16} draggableMarker={pin} onDragMarker={setPin} onMapClick={setPin} />}
                     </div>

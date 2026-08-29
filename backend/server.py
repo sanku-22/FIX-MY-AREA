@@ -300,7 +300,11 @@ async def phone_start(payload: PhoneStart):
     if not await _otp_rate_ok(phone):
         raise HTTPException(status_code=429, detail="Too many attempts. Please try again in an hour.")
     channel = "sms" if payload.channel == "sms" else "call"
-    res = phone_auth.start_verification(phone, channel=channel)
+    try:
+        res = phone_auth.start_verification(phone, channel=channel)
+    except Exception as e:
+        logger.error(f"Twilio verification start failed: {e}")
+        raise HTTPException(status_code=502, detail="We couldn't place the verification right now. Please try again, or use the SMS option. (Trial Twilio accounts can only reach verified numbers.)")
     doc = {"phone": phone, "channel": channel, "status": "pending", "attempts": 0, "created_at": now_iso()}
     if res.get("demo"):
         doc["code"] = res["demo_code"]

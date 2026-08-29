@@ -515,67 +515,88 @@ def test_admin_status_and_category_update(super_admin_session, uploaded_photo_pa
 # ============================================================
 # AI photo verification regression (gated behind citizen auth)
 # ============================================================
-def test_upload_rejects_irrelevant_photo(citizen_session):
-    try:
-        img = requests.get("https://loremflickr.com/800/600/mountain,landscape", timeout=30).content
-    except Exception:
-        pytest.skip("no image")
-    if len(img) < 5000:
-        pytest.skip("bad image")
-    r = requests.post(f"{API}/upload", files={"file": ("m.jpg", img, "image/jpeg")},
-                      headers={"Authorization": f"Bearer {citizen_session['token']}"}, timeout=90)
-    assert r.status_code == 200
-    d = r.json()
-    if d.get("relevant") is True:
-        pytest.skip(f"vision misclassified mountain: {d}")
-    assert d["relevant"] is False
-    assert "photo_path" not in d
-    # With GEMINI_API_KEY unset the pipeline must queue for review.
-    assert d.get("reject_code") in {"not_civic", "low_confidence", "ai_generated", "review"}
+CIVIC_ACCEPT_CATEGORIES = {
+    "pothole/road damage", "broken streetlight", "water leakage/pipeline burst",
+    "sewage overflow/blocked drain", "garbage dumping/overflowing bin",
+    "broken footpath/pavement damage", "damaged public property", "waterlogging/flooding",
+}
 
 
-def test_upload_review_queue_when_gemini_key_missing(citizen_session):
-    """When GEMINI_API_KEY is unset, every upload must be queued for manual review,
-    NEVER auto-accepted. Response contract: {relevant:false, reject_code:'review',
-    reason, category, confidence, flagged_ai_generated} and NO photo_path."""
-    import subprocess
-    # Only run this assertion if we can confirm the key is empty in backend .env
-    try:
-        with open("/app/backend/.env") as f:
-            env_txt = f.read()
-    except Exception:
-        pytest.skip("cannot read backend/.env")
-    key_line = [ln for ln in env_txt.splitlines() if ln.startswith("GEMINI_API_KEY=")]
-    if not key_line:
-        pytest.skip("no GEMINI_API_KEY line")
-    val = key_line[0].split("=", 1)[1].strip().strip('"').strip("'")
-    if val:
-        pytest.skip("GEMINI_API_KEY is set — review-queue behavior not applicable")
+def _fetch_photo(urls):
+    for url in urls:
+        try:
+            r = requests.get(url, timeout=30, allow_redirects=True,
+                             headers={"User-Agent": "Mozilla/5.0"})
+            if r.status_code == 200 and len(r.content) > 8000 and r.content[:2] in (b"\xff\xd8", b"\x89P"):
+                return r.content
+        except Exception:
+            continue
+    return None
 
-    # Any image will do — Gemini won't be called; the pipeline should short-circuit.
-    buf = io.BytesIO()
-    Image.new("RGB", (400, 300), color=(120, 120, 120)).save(buf, format="JPEG")
-    r = requests.post(f"{API}/upload", files={"file": ("x.jpg", buf.getvalue(), "image/jpeg")},
-                      headers={"Authorization": f"Bearer {citizen_session['token']}"}, timeout=60)
+
+def test_upload_accepts_real_civic_photo(citizen_session):
+    """With EMERGENT_LLM_KEY fallback active, a real pothole/road-damage photo
+    must be ACCEPTED: relevant=true, photo_path present, non-NONE civic category,
+    confidence >= 0.8 (per gemini_verify CONF_THRESHOLD=80)."""
+    img = _fetch_photo([
+        "https://loremflickr.com/800/600/pothole,road,damage",
+        "https://loremflickr.com/800/600/garbage,dump,street",
+        "https://loremflickr.com/800/600/broken,streetlight",
+    ])
+    if img is None:
+        pytest.skip("could not fetch real civic image")
+    r = requests.post(f"{API}/upload", files={"file": ("civic.jpg", img, "image/jpeg")},
+                      headers={"Authorization": f"Bearer {citizen_session['token']}"}, timeout=120)
     assert r.status_code == 200, r.text
     d = r.json()
-    assert d["relevant"] is False, f"upload was auto-accepted while GEMINI_API_KEY empty! resp={d}"
-    assert "photo_path" not in d, f"photo_path leaked into review-queue response: {d}"
-    assert d.get("reject_code") == "review", f"expected reject_code='review', got {d}"
+    # If misclassified by vision, do not fail hard on classification randomness — but
+    # if reject_code is 'review' that indicates the fallback pipeline is BROKEN.
+    assert d.get("reject_code") != "review", (
+        f"upload short-circuited to review-queue — verification NOT working: {d}"
+    )
+    if d.get("relevant") is not True:
+        pytest.skip(f"vision did not accept image (non-review reject); resp={d}")
+    assert d["relevant"] is True
+    assert "photo_path" in d and d["photo_path"], f"missing photo_path on accept: {d}"
+    assert str(d.get("category", "none")).strip().upper() != "NONE", d
+    assert str(d.get("category", "none")).strip().lower() in CIVIC_ACCEPT_CATEGORIES, d
+    assert float(d.get("confidence", 0)) >= 0.80, d
+
+
+def test_upload_rejects_irrelevant_photo(citizen_session):
+    """A landscape/mountain photo must be REJECTED with reject_code='not_civic'
+    (NOT 'review' — that would indicate the pipeline is broken)."""
+    img = _fetch_photo([
+        "https://loremflickr.com/800/600/mountain,landscape,nature",
+        "https://loremflickr.com/800/600/sky,clouds",
+    ])
+    if img is None:
+        pytest.skip("could not fetch landscape image")
+    r = requests.post(f"{API}/upload", files={"file": ("m.jpg", img, "image/jpeg")},
+                      headers={"Authorization": f"Bearer {citizen_session['token']}"}, timeout=120)
+    assert r.status_code == 200, r.text
+    d = r.json()
+    assert d.get("reject_code") != "review", (
+        f"upload short-circuited to review-queue — verification NOT working: {d}"
+    )
+    if d.get("relevant") is True:
+        pytest.skip(f"vision misclassified landscape as civic: {d}")
+    assert d["relevant"] is False
+    assert "photo_path" not in d, f"photo_path leaked on reject: {d}"
+    assert d.get("reject_code") in {"not_civic", "low_confidence", "ai_generated"}, d
     # contract fields present
     for k in ("reason", "category", "confidence", "flagged_ai_generated"):
         assert k in d, f"missing {k} in response {d}"
 
 
-def test_no_emergentintegrations_in_backend():
-    """Verify migration: no leftover emergentintegrations imports in backend .py files."""
-    import subprocess
-    r = subprocess.run(
-        ["grep", "-rIn", "emergentintegrations", "/app/backend",
-         "--include=*.py", "--exclude-dir=__pycache__", "--exclude-dir=tests"],
-        capture_output=True, text=True)
-    # grep exits 1 when no match (good)
-    assert r.returncode == 1, f"emergentintegrations still referenced:\n{r.stdout}"
+def test_verification_is_configured_via_fallback():
+    """is_configured() must be True when EMERGENT_LLM_KEY is present even if GEMINI_API_KEY is empty."""
+    import sys
+    sys.path.insert(0, "/app/backend")
+    import importlib
+    gv = importlib.import_module("gemini_verify")
+    importlib.reload(gv)
+    assert gv.is_configured() is True, "is_configured() must be True with EMERGENT_LLM_KEY fallback"
 
 
 def test_logout_clears_cookie():

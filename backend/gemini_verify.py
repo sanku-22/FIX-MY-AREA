@@ -1,13 +1,18 @@
-"""Two-stage image verification using Google Gemini (multimodal). No Emergent LLM here."""
+"""Two-stage image verification. Uses Google Gemini (multimodal) when GEMINI_API_KEY is set,
+otherwise falls back to the Emergent universal key (vision) running the same prompts."""
 import os
+import io
 import json
 import time
+import uuid
 import logging
 
 logger = logging.getLogger(__name__)
 
 GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY") or ""
 GEMINI_MODEL = os.environ.get("GEMINI_MODEL", "gemini-2.5-flash")
+EMERGENT_LLM_KEY = os.environ.get("EMERGENT_LLM_KEY") or ""
+EMERGENT_VISION_MODEL = ("openai", "gpt-5.4")
 
 CIVIC_LABELS = {
     "pothole/road damage", "broken streetlight", "water leakage/pipeline burst",
@@ -37,7 +42,7 @@ STAGE2_PROMPT = (
 
 
 def is_configured() -> bool:
-    return bool(GEMINI_API_KEY)
+    return bool(GEMINI_API_KEY or EMERGENT_LLM_KEY)
 
 
 def _extract_json(text: str) -> str:
@@ -46,22 +51,41 @@ def _extract_json(text: str) -> str:
     return text[s:e + 1] if s != -1 and e != -1 else text
 
 
-def _call(data: bytes, mime: str, prompt: str, retries: int = 2) -> dict:
+def _call_gemini(data: bytes, mime: str, prompt: str) -> dict:
     from google import genai
     from google.genai import types
+    client = genai.Client(api_key=GEMINI_API_KEY)
+    resp = client.models.generate_content(
+        model=GEMINI_MODEL,
+        contents=[types.Part.from_bytes(data=data, mime_type=mime or "image/jpeg"), prompt],
+        config=types.GenerateContentConfig(response_mime_type="application/json", temperature=0),
+    )
+    return json.loads(_extract_json(resp.text))
+
+
+def _call_emergent(data: bytes, mime: str, prompt: str) -> dict:
+    """Fallback vision call via the Emergent universal key (used only when GEMINI_API_KEY is absent)."""
+    import asyncio
+    import base64
+    from emergentintegrations.llm.chat import LlmChat, UserMessage, ImageContent
+    b64 = base64.b64encode(data).decode()
+    chat = LlmChat(api_key=EMERGENT_LLM_KEY, session_id=f"verify-{uuid.uuid4().hex[:8]}",
+                   system_message="You are a strict image analyzer. Reply with strict minified JSON only.").with_model(*EMERGENT_VISION_MODEL)
+    resp = asyncio.run(chat.send_message(UserMessage(text=prompt, file_contents=[ImageContent(image_base64=b64)])))
+    return json.loads(_extract_json(resp if isinstance(resp, str) else str(resp)))
+
+
+def _call(data: bytes, mime: str, prompt: str, retries: int = 2) -> dict:
+    provider = "gemini" if GEMINI_API_KEY else ("emergent" if EMERGENT_LLM_KEY else None)
+    if provider is None:
+        raise RuntimeError("No verification API key configured")
     last = None
     for attempt in range(retries + 1):
         try:
-            client = genai.Client(api_key=GEMINI_API_KEY)
-            resp = client.models.generate_content(
-                model=GEMINI_MODEL,
-                contents=[types.Part.from_bytes(data=data, mime_type=mime or "image/jpeg"), prompt],
-                config=types.GenerateContentConfig(response_mime_type="application/json", temperature=0),
-            )
-            return json.loads(_extract_json(resp.text))
+            return _call_gemini(data, mime, prompt) if provider == "gemini" else _call_emergent(data, mime, prompt)
         except Exception as e:
             last = e
-            logger.error(f"[GEMINI] call failed (attempt {attempt + 1}): {e}")
+            logger.error(f"[VERIFY:{provider}] call failed (attempt {attempt + 1}): {e}")
             time.sleep(0.6 * (attempt + 1))
     raise last
 

@@ -8,6 +8,8 @@ import base64
 import logging
 import uuid
 import requests
+import io
+from PIL import Image, ExifTags
 from pathlib import Path
 from pydantic import BaseModel
 from typing import List, Optional
@@ -33,6 +35,21 @@ VISION_MODEL = ("openai", "gpt-5.4")
 ADMIN_EMAIL = "sinpi3323@gmail.com"
 NOMINATIM_UA = "CivicFix/1.0 (civic issue reporting app)"
 
+# ---- Strict image-verification config ----
+CIVIC_CATEGORIES = [
+    "pothole_or_damaged_road",
+    "broken_streetlight",
+    "water_leak_or_pipeline_burst",
+    "sewage_or_open_or_blocked_drain",
+    "garbage_or_overflowing_bin",
+    "broken_footpath_or_pavement",
+    "damaged_public_property",
+    "waterlogging_or_flooding",
+]
+CIVIC_CONFIDENCE_THRESHOLD = 0.85
+AI_CONFIDENCE_THRESHOLD = 0.55
+EDIT_SOFTWARE_MARKERS = ["photoshop", "gimp", "lightroom", "affinity", "midjourney", "dall-e", "dall·e", "stable diffusion"]
+
 MIME_TYPES = {
     "jpg": "image/jpeg", "jpeg": "image/jpeg", "png": "image/png",
     "gif": "image/gif", "webp": "image/webp",
@@ -48,16 +65,129 @@ CATEGORY_KEYWORDS = {
 
 STATUS_ORDER = ["reported", "acknowledged", "in_progress", "resolved"]
 
-VISION_SYSTEM = "You are an image moderation assistant for a civic issue reporting app. You always reply with strict JSON only."
-VISION_PROMPT = (
-    "Analyze this photo. Return ONLY strict JSON (no markdown) with keys: "
-    "relevant (boolean: true if it shows a real-world civic/public-infrastructure issue such as a pothole, "
-    "damaged road, garbage/trash pile, broken or fallen streetlight, water leak/flooding, broken signage, "
-    "drainage or similar public problem; false if unrelated e.g. a selfie, screenshot, computer screen, meme, "
-    "documents, indoor objects, or random content), "
-    "reason (short string), "
-    "ai_generated (boolean: true if the image looks synthetic/AI-generated rather than a real photograph)."
+VISION_SYSTEM = (
+    "You are a strict image-moderation and classification system for a municipal civic-issue "
+    "reporting app. Citizens upload a photo of a real public-infrastructure PROBLEM. Your job is to "
+    "reject anything that is not clearly such a problem. Be conservative: when unsure, do NOT accept. "
+    "You always reply with strict minified JSON only, no markdown."
 )
+VISION_PROMPT = (
+    "Classify the attached image. Decide if it clearly depicts a REAL, currently-visible civic "
+    "infrastructure PROBLEM belonging to exactly one of these categories:\n"
+    "- pothole_or_damaged_road (visible pothole, crack, broken/damaged road surface)\n"
+    "- broken_streetlight (damaged/fallen/non-functional street light or pole)\n"
+    "- water_leak_or_pipeline_burst (leaking/burst pipe, water gushing)\n"
+    "- sewage_or_open_or_blocked_drain (open manhole, overflowing sewage, blocked drain)\n"
+    "- garbage_or_overflowing_bin (garbage pile, dumped trash, overflowing dustbin)\n"
+    "- broken_footpath_or_pavement (damaged/broken sidewalk, tiles, kerb)\n"
+    "- damaged_public_property (broken public bench, sign, railing, bus stop, etc.)\n"
+    "- waterlogging_or_flooding (water logged / flooded road or street)\n\n"
+    "REJECT (set is_civic_issue=false, category='none') for anything else, including but not limited to: "
+    "mountains, hills, landscapes, scenery, sky, sunsets, beaches, rivers, fields, forests, gardens, "
+    "flowers, animals/pets, food, selfies or portraits of people, group photos, indoor rooms, "
+    "screenshots, documents, memes, product/object photos, vehicles in good condition, a normal clean "
+    "road or street with NO visible damage, or any generic outdoor/nature photo. A plain intact road, "
+    "footpath or streetlight with no visible defect is NOT a valid issue.\n\n"
+    "Also judge whether the image is AI-generated, synthetic, or digitally manipulated/edited "
+    "(GAN/diffusion artifacts, unnatural textures, impossible geometry, obvious compositing).\n\n"
+    "Return strict JSON with EXACTLY these keys: "
+    '{"is_civic_issue": boolean, "category": one of the 8 category ids above or "none", '
+    '"confidence": number 0..1 (your confidence that the image truly shows THAT civic problem; '
+    'use a LOW value for anything ambiguous, distant, unclear, or not clearly a problem), '
+    '"ai_generated": boolean, "ai_confidence": number 0..1, '
+    '"reason": short human-readable explanation of the decision}.'
+)
+
+
+def _extract_exif(data: bytes) -> dict:
+    info = {"has_exif": False, "camera": None, "datetime": None, "gps": False, "software": None}
+    try:
+        img = Image.open(io.BytesIO(data))
+        exif = img._getexif() if hasattr(img, "_getexif") else None
+        if not exif:
+            return info
+        tagmap = {ExifTags.TAGS.get(k, k): v for k, v in exif.items()}
+        info["has_exif"] = True
+        make = tagmap.get("Make"); model = tagmap.get("Model")
+        if make or model:
+            info["camera"] = f"{make or ''} {model or ''}".strip()
+        info["datetime"] = str(tagmap.get("DateTimeOriginal") or tagmap.get("DateTime") or "") or None
+        info["software"] = str(tagmap.get("Software") or "") or None
+        info["gps"] = bool(tagmap.get("GPSInfo"))
+    except Exception:
+        pass
+    return info
+
+
+async def verify_photo(data: bytes, mime: str) -> dict:
+    """Strict multi-step pipeline: civic classification + confidence threshold + AI-generated/edited check + EXIF signal."""
+    exif = _extract_exif(data)
+    result = {
+        "relevant": True, "reason": "", "flagged_ai_generated": False,
+        "reject_code": "", "category": "none", "confidence": 0.0,
+        "ai_generated": False, "exif": exif, "skipped": False,
+    }
+    if not EMERGENT_LLM_KEY:
+        result["skipped"] = True
+        return result
+    try:
+        from emergentintegrations.llm.chat import LlmChat, UserMessage, ImageContent
+        b64 = base64.b64encode(data).decode()
+        chat = LlmChat(
+            api_key=EMERGENT_LLM_KEY,
+            session_id=f"verify-{uuid.uuid4().hex[:8]}",
+            system_message=VISION_SYSTEM,
+        ).with_model(*VISION_MODEL)
+        resp = await chat.send_message(
+            UserMessage(text=VISION_PROMPT, file_contents=[ImageContent(image_base64=b64)])
+        )
+        parsed = json.loads(_extract_json(resp if isinstance(resp, str) else str(resp)))
+
+        is_civic = bool(parsed.get("is_civic_issue", False))
+        category = str(parsed.get("category", "none"))
+        confidence = float(parsed.get("confidence", 0.0) or 0.0)
+        ai_generated = bool(parsed.get("ai_generated", False))
+        ai_conf = float(parsed.get("ai_confidence", 0.0) or 0.0)
+        model_reason = str(parsed.get("reason", ""))
+
+        # EXIF-based edit signal (metadata inconsistency) — reinforces AI/edited detection
+        edited_by_software = False
+        if exif.get("software"):
+            sw = exif["software"].lower()
+            edited_by_software = any(m in sw for m in EDIT_SOFTWARE_MARKERS)
+
+        result.update({
+            "category": category, "confidence": confidence,
+            "ai_generated": ai_generated, "model_reason": model_reason,
+        })
+
+        # ---- Final validation flow (order: civic relevance, then authenticity, then confidence) ----
+        if not is_civic or category not in CIVIC_CATEGORIES:
+            result.update({
+                "relevant": False, "reject_code": "not_civic",
+                "reason": "This photo doesn't show a civic issue we can act on (e.g. pothole, garbage, broken streetlight, water/drain problem). Please upload a clear photo of the actual problem.",
+            })
+        elif (ai_generated and ai_conf >= AI_CONFIDENCE_THRESHOLD) or edited_by_software:
+            result.update({
+                "relevant": False, "reject_code": "ai_generated", "flagged_ai_generated": True,
+                "reason": "This image appears to be AI-generated or edited. Please upload an original photo of the issue taken directly from your camera.",
+            })
+        elif confidence < CIVIC_CONFIDENCE_THRESHOLD:
+            result.update({
+                "relevant": False, "reject_code": "low_confidence",
+                "reason": "We couldn't clearly identify the issue in this photo. Please retake a clearer, closer photo of the problem.",
+            })
+        else:
+            result.update({"relevant": True, "reason": model_reason})
+        logger.info(
+            f"verify_photo -> relevant={result['relevant']} code={result['reject_code']} "
+            f"cat={category} conf={confidence:.2f} ai={ai_generated}/{ai_conf:.2f} exif_sw={exif.get('software')}"
+        )
+        return result
+    except Exception as e:
+        logger.error(f"Photo verification failed (fail-open): {e}")
+        result["skipped"] = True
+        return result
 
 
 def now_iso():
@@ -82,33 +212,6 @@ def _extract_json(text: str) -> str:
     if start != -1 and end != -1:
         return text[start:end + 1]
     return text
-
-
-async def verify_photo(data: bytes, mime: str) -> dict:
-    """AI relevance + AI-generated soft flag using Emergent LLM key (vision)."""
-    if not EMERGENT_LLM_KEY:
-        return {"relevant": True, "reason": "", "flagged_ai_generated": False, "skipped": True}
-    try:
-        from emergentintegrations.llm.chat import LlmChat, UserMessage, ImageContent
-        b64 = base64.b64encode(data).decode()
-        chat = LlmChat(
-            api_key=EMERGENT_LLM_KEY,
-            session_id=f"verify-{uuid.uuid4().hex[:8]}",
-            system_message=VISION_SYSTEM,
-        ).with_model(*VISION_MODEL)
-        resp = await chat.send_message(
-            UserMessage(text=VISION_PROMPT, file_contents=[ImageContent(image_base64=b64)])
-        )
-        parsed = json.loads(_extract_json(resp if isinstance(resp, str) else str(resp)))
-        return {
-            "relevant": bool(parsed.get("relevant", True)),
-            "reason": str(parsed.get("reason", "")),
-            "flagged_ai_generated": bool(parsed.get("ai_generated", False)),
-            "skipped": False,
-        }
-    except Exception as e:
-        logger.error(f"Photo verification failed: {e}")
-        return {"relevant": True, "reason": "", "flagged_ai_generated": False, "skipped": True}
 
 
 # ---------- Models ----------
@@ -267,8 +370,11 @@ async def upload(file: UploadFile = File(...)):
     if not verdict["relevant"]:
         return {
             "relevant": False,
+            "reject_code": verdict.get("reject_code", "not_civic"),
             "reason": verdict.get("reason") or "This photo does not look like a civic issue.",
             "flagged_ai_generated": verdict.get("flagged_ai_generated", False),
+            "category": verdict.get("category", "none"),
+            "confidence": verdict.get("confidence", 0.0),
         }
 
     path = f"{APP_NAME}/uploads/{uuid.uuid4()}.{ext}"
@@ -278,6 +384,8 @@ async def upload(file: UploadFile = File(...)):
         "relevant": True,
         "reason": verdict.get("reason", ""),
         "flagged_ai_generated": verdict.get("flagged_ai_generated", False),
+        "category": verdict.get("category", "none"),
+        "confidence": verdict.get("confidence", 0.0),
     }
 
 

@@ -45,8 +45,16 @@ export default function ReportWizard({ open, onOpenChange, userLocation, onCreat
     setPhotoPath(null); setFlaggedAi(false); setVerifyError(""); setVerifying(true);
     try {
       const res = await uploadPhoto(f);
-      if (!res.relevant) { setVerifyError(res.reason || t("wizard.notRelevant")); setPreview(null); }
-      else {
+      if (!res.relevant) {
+        const codeMap = {
+          not_civic: "wizard.reject_not_civic",
+          low_confidence: "wizard.reject_low_confidence",
+          ai_generated: "wizard.reject_ai_generated",
+        };
+        const key = codeMap[res.reject_code];
+        setVerifyError(key ? t(key) : res.reason || t("wizard.notRelevant"));
+        setPreview(null);
+      } else {
         setPhotoPath(res.photo_path); setFlaggedAi(!!res.flagged_ai_generated);
         if (res.flagged_ai_generated) toast(t("wizard.aiFlag"));
       }

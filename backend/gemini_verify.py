@@ -20,7 +20,7 @@ CIVIC_LABELS = {
     "broken footpath/pavement damage", "damaged public property", "waterlogging/flooding",
 }
 CONF_THRESHOLD = 80        # civic confidence (0-100)
-AI_CONF_THRESHOLD = 30     # reject if AI-generated confidence >= this
+AI_CONF_THRESHOLD = 85     # reject ONLY when model is highly confident image is AI-generated
 EDIT_SOFTWARE_MARKERS = ["photoshop", "gimp", "lightroom", "affinity", "midjourney", "dall-e", "dall·e", "stable diffusion"]
 
 STAGE1_PROMPT = (
@@ -34,8 +34,14 @@ STAGE1_PROMPT = (
     '{"category": string, "confidence": integer 0-100, "reasoning": string, "is_valid_civic_issue": boolean}.'
 )
 STAGE2_PROMPT = (
-    "Analyze this image for signs of AI generation or synthetic manipulation: unnatural textures, inconsistent "
-    "lighting/shadows, warped or impossible structures, blurred/garbled text, and other synthetic artifacts. "
+    "Determine whether this photo is FULLY AI-GENERATED or synthetically fabricated (e.g. Midjourney, DALL-E, "
+    "Stable Diffusion). Assume it is a REAL photo by default. Ordinary real-photo traits are NOT evidence of AI "
+    "and must be IGNORED: JPEG/compression artifacts, noise/grain, motion blur, low light, over/underexposure, "
+    "lens distortion, low resolution, dirt, watermarks/timestamps, or being taken on a cheap phone camera. "
+    "ONLY set is_ai_generated=true if there is STRONG, unmistakable evidence of synthesis such as clearly impossible "
+    "geometry, melted/warped objects, garbled fake text, or plastic 'render' surfaces. When uncertain, set "
+    "is_ai_generated=false with low confidence. 'confidence' = how confident you are that the image IS AI-generated "
+    "(0 = certainly a real photo, 100 = certainly AI-generated). "
     "Respond ONLY as JSON: "
     '{"is_ai_generated": boolean, "confidence": integer 0-100, "indicators": [string, ...]}.'
 )
@@ -142,18 +148,19 @@ def verify(data: bytes, mime: str, exif: dict) -> dict:
     ai_conf = float(s2.get("confidence", 0) or 0)
     result["ai_generated"] = ai_generated
 
-    # EXIF secondary signal: editor software => treat as edited/synthetic
-    edited_by_software = False
+    # EXIF secondary signal: only flag if a KNOWN generative-AI tool wrote the metadata.
+    # (Missing EXIF is normal — browsers/messaging apps strip it — so it is NOT used to reject.)
+    ai_software = False
     if exif.get("software"):
         sw = exif["software"].lower()
-        edited_by_software = any(m in sw for m in EDIT_SOFTWARE_MARKERS)
-    exif_missing = not (exif.get("camera") or exif.get("gps") or exif.get("datetime"))
+        ai_software = any(m in sw for m in EDIT_SOFTWARE_MARKERS)
 
-    if (ai_generated and ai_conf >= AI_CONF_THRESHOLD) or edited_by_software:
+    if (ai_generated and ai_conf >= AI_CONF_THRESHOLD) or ai_software:
         result.update({"relevant": False, "reject_code": "ai_generated", "flagged_ai_generated": True,
-                       "reason": "This image appears to be AI-generated or edited. Please upload an original photo of the issue taken directly from your camera."})
+                       "reason": "This image appears to be AI-generated. Please upload an original photo of the issue taken directly from your camera."})
         return result
 
-    result.update({"relevant": True, "reason": reasoning, "flagged_ai_generated": exif_missing and ai_conf >= 15})
-    logger.info(f"[GEMINI] accepted cat='{category}' conf={conf} ai={ai_generated}/{ai_conf} exif_missing={exif_missing}")
+    # Soft flag (still accepted) only when the model leans AI with moderate confidence.
+    result.update({"relevant": True, "reason": reasoning, "flagged_ai_generated": ai_generated and ai_conf >= 70})
+    logger.info(f"[GEMINI] accepted cat='{category}' conf={conf} ai={ai_generated}/{ai_conf}")
     return result

@@ -18,9 +18,9 @@ export const FILTER_CHIPS = [
 ];
 
 export const STATUS = {
-  open: { label: "Open", color: "#EF4444" },
-  in_progress: { label: "In Progress", color: "#F59E0B" },
-  resolved: { label: "Resolved", color: "#10B981" },
+  open: { label: "Open", color: "#E0913A" },
+  in_progress: { label: "In Progress", color: "#5E8DBE" },
+  resolved: { label: "Resolved", color: "#4E9E74" },
 };
 
 export const TIMELINE_STEPS = [

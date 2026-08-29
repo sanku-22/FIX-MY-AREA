@@ -1,5 +1,5 @@
 {
-  "app": { "name": "CivicFix", "tagline_one": "{{count}} issue reported nearby", "tagline_other": "{{count}} issues reported nearby" },
+  "app": { "name": "Fix My Area", "tagline_one": "{{count}} issue reported nearby", "tagline_other": "{{count}} issues reported nearby" },
   "nav": { "map": "Map", "myIssues": "My Issues", "admin": "Admin" },
   "common": { "language": "Language", "english": "English", "hindi": "हिंदी", "cancel": "Cancel", "loading": "Loading…" },
   "auth": { "signIn": "Sign in", "signInGoogle": "Continue with Google", "signOut": "Sign out", "signedInAs": "Signed in", "guest": "Guest", "loginPerk": "Sign in to attach your name to reports" },
@@ -7,26 +7,27 @@
   "categories": { "pothole": "Pothole", "garbage": "Garbage", "streetlight": "Streetlight", "water": "Water", "signage": "Signage", "other": "Other", "uncategorized": "General" },
   "status": { "open": "Open", "in_progress": "In Progress", "resolved": "Resolved" },
   "timeline": { "reported": "Reported", "acknowledged": "Acknowledged", "in_progress": "In Progress", "resolved": "Resolved" },
-  "home": { "nearby": "Nearby issues", "reportIssue": "Report an Issue", "noIssues": "No issues in this category yet.", "reportedIssue": "Reported issue" },
+  "home": { "nearby": "Nearby issues", "reportIssue": "Report an Issue", "noIssues": "No issues in this category yet.", "reportedIssue": "Reported issue", "emptyTitle": "No issues reported nearby yet", "emptyText": "When people report problems around you, they'll show up here. Be the first to help improve your area." },
   "wizard": {
     "title": "Report an Issue",
-    "step1": "Step 1 · Photo", "snap": "Snap the issue", "tapToOpen": "Tap to open camera or gallery", "changePhoto": "Change photo",
-    "verifying": "Verifying photo…", "notRelevant": "That doesn't look like a civic issue. Please upload a real photo of the problem.",
+    "step1": "Step 1 of 3 · Photo", "snap": "Add a photo of the issue", "photoLabel": "Add a photo of the issue", "photoHint": "Tap to take a photo or choose from your gallery", "changePhoto": "Change photo",
+    "verifying": "Checking your photo…", "verified": "Looks good", "notRelevant": "That doesn't look like a civic issue. Please add a real photo of the problem.",
     "aiFlag": "Heads up: this photo looks AI-generated. You can still submit — it will be flagged for review.",
     "continue": "Continue",
-    "step2": "Step 2 · Location", "pinSpot": "Pin the exact spot", "dragHint": "Drag the pin or tap the map to adjust.", "confirmLocation": "Confirm Location", "locating": "Locating…",
-    "confirmAddress": "Confirm address", "addressLocating": "Locating address…", "edit": "Edit", "confirm": "Confirm",
-    "step3": "Step 3 · Details", "addDescription": "Add a description", "descOptional": "Optional — helps us categorize the issue.", "descPlaceholder": "e.g. Large pothole near the bus stop, dangerous for two-wheelers.",
-    "submit": "Submit Report", "submitting": "Submitting…", "submitted": "Report submitted!", "submittedDesc": "Your issue is now live on the map.", "submitError": "Could not submit report. Please try again."
+    "step2": "Step 2 of 3 · Location", "pinSpot": "Pin the exact spot", "dragHint": "Drag the pin or tap the map to adjust the location.", "confirmLocation": "Confirm Location", "locating": "Locating…",
+    "confirmAddress": "Is this the right spot?", "addressLocating": "Finding the address…", "edit": "Edit", "confirm": "Confirm",
+    "step3": "Step 3 of 3 · Details", "addDescription": "Add a description", "descOptional": "Optional — a short note helps sort the issue faster.", "descPlaceholder": "e.g. Large pothole near the bus stop, risky for two-wheelers.",
+    "submit": "Submit Report", "submitting": "Submitting…", "submitError": "Could not submit report. Please try again.",
+    "successTitle": "Report submitted", "successText": "Thanks for helping improve your area. Your report is now on the map."
   },
   "detail": {
-    "back": "Back", "confirm": "Confirm", "share": "Share", "linkCopied": "Link copied to clipboard", "confirmThanks": "Thanks! You confirmed this issue.", "alreadyConfirmed": "You already confirmed this issue.",
-    "confirmed_one": "{{count}} person has confirmed this is still an issue", "confirmed_other": "{{count}} people have confirmed this is still an issue",
-    "statusTimeline": "Status timeline", "comments": "Comments ({{count}})", "beFirst": "Be the first to comment.", "addComment": "Add a comment…", "noDescription": "No description provided.", "aiFlagged": "Flagged: AI-generated (pending review)"
+    "back": "Back", "confirm": "Confirm", "share": "Share", "linkCopied": "Link copied", "confirmThanks": "Thanks! You confirmed this issue.", "alreadyConfirmed": "You already confirmed this issue.",
+    "confirmed_one": "{{count}} person confirmed this is still an issue", "confirmed_other": "{{count}} people confirmed this is still an issue",
+    "statusTimeline": "Status timeline", "comments": "Comments ({{count}})", "beFirst": "Be the first to comment.", "addComment": "Add a comment…", "noDescription": "No description provided.", "aiFlagged": "Flagged: photo looks AI-generated (pending review)"
   },
   "myIssues": { "title": "My Issues", "reportsSubmitted_one": "{{count}} report submitted", "reportsSubmitted_other": "{{count}} reports submitted", "newest": "Newest", "oldest": "Oldest", "empty": "You haven't reported any issues yet. Head to the map to file your first report." },
   "admin": {
-    "title": "CivicFix Admin", "subtitle": "Municipal issue management", "citizenView": "Citizen view",
+    "title": "Fix My Area Admin", "subtitle": "Municipal issue management", "citizenView": "Citizen view",
     "totalOpen": "Total open", "inProgress": "In progress", "resolvedWeek": "Resolved this week", "totalReports": "Total reports", "flagged": "AI-flagged",
     "allStatuses": "All statuses", "allCategories": "All categories", "shown": "{{count}} shown",
     "issue": "Issue", "category": "Category", "statusCol": "Status", "confirms": "Confirms", "reportedCol": "Reported", "noMatch": "No issues match these filters.",

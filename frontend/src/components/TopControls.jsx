@@ -12,8 +12,7 @@ export default function TopControls({ compact = false }) {
 
   return (
     <div className="flex items-center gap-2">
-      {/* language toggle */}
-      <div data-testid="language-toggle" className="flex overflow-hidden rounded-full border border-[#e4e4e7] bg-white">
+      <div data-testid="language-toggle" className="flex overflow-hidden rounded-full border border-[#e6e3dc] bg-white">
         {["en", "hi"].map((l) => (
           <button
             key={l}
@@ -21,7 +20,7 @@ export default function TopControls({ compact = false }) {
             onClick={() => setLanguage(l)}
             className={cn(
               "px-2.5 py-1 text-xs font-bold transition-colors",
-              lang === l ? "bg-[#09090b] text-white" : "text-[#71717a]",
+              lang === l ? "bg-[#1f7a72] text-white" : "text-[#6b6b70]",
             )}
           >
             {l === "en" ? "EN" : "हिं"}
@@ -29,17 +28,16 @@ export default function TopControls({ compact = false }) {
         ))}
       </div>
 
-      {/* auth */}
       {user ? (
         <div className="flex items-center gap-1.5">
           {user.picture ? (
-            <img data-testid="user-avatar" src={user.picture} alt={user.name} className="h-8 w-8 rounded-full border border-[#e4e4e7] object-cover" referrerPolicy="no-referrer" />
+            <img data-testid="user-avatar" src={user.picture} alt={user.name} className="h-8 w-8 rounded-full border border-[#e6e3dc] object-cover" referrerPolicy="no-referrer" />
           ) : (
-            <span className="flex h-8 w-8 items-center justify-center rounded-full bg-[#09090b] text-xs font-bold text-white">
+            <span className="flex h-8 w-8 items-center justify-center rounded-full bg-[#1f7a72] text-xs font-bold text-white">
               {(user.name || "U").charAt(0)}
             </span>
           )}
-          <button data-testid="sign-out-btn" onClick={logout} className="flex h-8 w-8 items-center justify-center rounded-full border border-[#e4e4e7] bg-white text-[#71717a]" title={t("auth.signOut")}>
+          <button data-testid="sign-out-btn" onClick={logout} className="flex h-8 w-8 items-center justify-center rounded-full border border-[#e6e3dc] bg-white text-[#6b6b70]" title={t("auth.signOut")}>
             <LogOut className="h-4 w-4" />
           </button>
         </div>
@@ -47,9 +45,9 @@ export default function TopControls({ compact = false }) {
         <button
           data-testid="sign-in-btn"
           onClick={login}
-          className="flex items-center gap-1.5 rounded-full bg-[#09090b] px-3 py-1.5 text-xs font-semibold text-white"
+          className="flex items-center gap-1.5 rounded-full bg-[#1f7a72] px-3 py-1.5 text-xs font-semibold text-white transition-colors hover:bg-[#17635c]"
         >
-          <LogIn className="h-4 w-4" /> {compact ? t("auth.signIn") : t("auth.signIn")}
+          <LogIn className="h-4 w-4" /> {t("auth.signIn")}
         </button>
       )}
     </div>

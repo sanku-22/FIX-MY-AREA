@@ -3,10 +3,12 @@ import { Drawer } from "vaul";
 import { useTranslation } from "react-i18next";
 import { Phone, ArrowLeft, X, Loader2, ShieldCheck, MessageSquare, User } from "lucide-react";
 import { toast } from "sonner";
-import { phoneStart, phoneVerify, setProfile } from "@/lib/api";
+import { phoneStart, phoneVerify, setProfile, msg91Login } from "@/lib/api";
+import { msg91Enabled, loadMsg91, sendOtp as msgSend, verifyOtp as msgVerify, retryOtp as msgRetry, toIdentifier, extractAccessToken, friendlyMsg91Error } from "@/lib/msg91";
 
 export default function PhoneAuth({ open, onOpenChange, onAuthed }) {
   const { t } = useTranslation();
+  const useMsg91 = msg91Enabled();
   const [step, setStep] = useState(1); // 1 phone, 2 code, 3 name
   const [phone, setPhone] = useState("+91");
   const [code, setCode] = useState("");
@@ -17,29 +19,59 @@ export default function PhoneAuth({ open, onOpenChange, onAuthed }) {
   const [pendingUser, setPendingUser] = useState(null);
 
   useEffect(() => {
-    if (open) { setStep(1); setPhone("+91"); setCode(""); setName(""); setDemoCode(null); setErr(""); setBusy(false); setPendingUser(null); }
-  }, [open]);
+    if (open) {
+      setStep(1); setPhone("+91"); setCode(""); setName(""); setDemoCode(null); setErr(""); setBusy(false); setPendingUser(null);
+      if (useMsg91) loadMsg91().catch((e) => setErr(friendlyMsg91Error(e, t("phone.invalidNumber"))));
+    }
+  }, [open]); // eslint-disable-line
 
   const start = async (channel = "call") => {
     setErr(""); setBusy(true);
     try {
-      const res = await phoneStart(phone.trim(), channel);
-      setDemoCode(res.demo ? res.demo_code : null);
-      setStep(2);
-      if (!res.demo) toast.success(channel === "sms" ? "Code sent via SMS" : "You'll receive a call with your code");
+      if (useMsg91) {
+        await loadMsg91();
+        await msgSend(toIdentifier(phone));
+        setDemoCode(null);
+        setStep(2);
+        toast.success(t("phone.otpSent"));
+      } else {
+        const res = await phoneStart(phone.trim(), channel);
+        setDemoCode(res.demo ? res.demo_code : null);
+        setStep(2);
+        if (!res.demo) toast.success(channel === "sms" ? "Code sent via SMS" : "You'll receive a call with your code");
+      }
     } catch (e) {
-      setErr(e.response?.data?.detail || t("phone.invalidNumber"));
+      setErr(useMsg91 ? friendlyMsg91Error(e, t("phone.invalidNumber")) : (e.response?.data?.detail || t("phone.invalidNumber")));
+    } finally { setBusy(false); }
+  };
+
+  const resend = async (channel = null) => {
+    setErr(""); setBusy(true);
+    try {
+      if (useMsg91) { await msgRetry(channel); toast.success(t("phone.otpSent")); }
+      else { await start(channel || "call"); return; }
+    } catch (e) {
+      setErr(useMsg91 ? friendlyMsg91Error(e, t("phone.wrongCode")) : (e.response?.data?.detail || t("phone.wrongCode")));
     } finally { setBusy(false); }
   };
 
   const verify = async () => {
     setErr(""); setBusy(true);
     try {
-      const res = await phoneVerify(phone.trim(), code.trim());
-      if (res.is_new) { setPendingUser(res.user); setStep(3); }
-      else { onAuthed(res.user); }
+      if (useMsg91) {
+        const data = await msgVerify(code.trim());
+        const token = extractAccessToken(data);
+        if (!token) throw new Error("No verification token received");
+        const res = await msg91Login(phone.trim(), token);
+        if (res.is_new) { setPendingUser(res.user); setStep(3); }
+        else { onAuthed(res.user); }
+      } else {
+        const res = await phoneVerify(phone.trim(), code.trim());
+        if (res.is_new) { setPendingUser(res.user); setStep(3); }
+        else { onAuthed(res.user); }
+      }
     } catch (e) {
-      setErr(e.response?.data?.detail || t("phone.wrongCode"));
+      setErr(useMsg91 ? friendlyMsg91Error(e, t("phone.wrongCode")) : (e.response?.data?.detail || t("phone.wrongCode")));
     } finally { setBusy(false); }
   };
 
@@ -77,7 +109,7 @@ export default function PhoneAuth({ open, onOpenChange, onAuthed }) {
                   className="fx-input mt-4 w-full px-4 py-4 text-lg font-semibold tracking-wide" />
                 {err && <p data-testid="phone-error" className="mt-2 text-sm text-red-600">{err}</p>}
                 <button data-testid="phone-send-btn" disabled={busy} onClick={() => start("call")} className="fx-btn fx-btn-primary mt-5 w-full py-4">
-                  {busy ? <Loader2 className="h-5 w-5 animate-spin" /> : <Phone className="h-5 w-5" />} {t("phone.callMe")}
+                  {busy ? <Loader2 className="h-5 w-5 animate-spin" /> : <Phone className="h-5 w-5" />} {useMsg91 ? t("phone.sendOtp") : t("phone.callMe")}
                 </button>
                 <p className="mt-3 text-center text-xs text-[#9a9a9f]">{t("phone.noPassword")}</p>
               </div>
@@ -99,8 +131,8 @@ export default function PhoneAuth({ open, onOpenChange, onAuthed }) {
                   {busy ? <Loader2 className="h-5 w-5 animate-spin" /> : <ShieldCheck className="h-5 w-5" />} {t("phone.verify")}
                 </button>
                 <div className="mt-4 flex items-center justify-between text-sm">
-                  <button data-testid="phone-resend-btn" onClick={() => start("call")} className="font-semibold text-[#1f7a72]">{t("phone.resend")}</button>
-                  <button data-testid="phone-sms-btn" onClick={() => start("sms")} className="flex items-center gap-1.5 font-semibold text-[#6b6b70]"><MessageSquare className="h-4 w-4" /> {t("phone.smsFallback")}</button>
+                  <button data-testid="phone-resend-btn" onClick={() => (useMsg91 ? resend(null) : start("call"))} className="font-semibold text-[#1f7a72]">{useMsg91 ? t("phone.resendOtp") : t("phone.resend")}</button>
+                  <button data-testid="phone-sms-btn" onClick={() => (useMsg91 ? resend("11") : start("sms"))} className="flex items-center gap-1.5 font-semibold text-[#6b6b70]"><MessageSquare className="h-4 w-4" /> {t("phone.smsFallback")}</button>
                 </div>
               </div>
             )}

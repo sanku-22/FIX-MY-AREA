@@ -5,7 +5,7 @@
   "auth": { "signIn": "Sign in", "signInGoogle": "Continue with Google", "signOut": "Sign out", "signedInAs": "Signed in", "guest": "You", "loginPerk": "Sign in to attach your name to reports", "loginRequired": "Please sign in with your phone number to continue." },
   "phone": {
     "title": "Sign in", "enterNumber": "Enter your mobile number", "enterNumberSub": "We'll call you with a 6-digit code — no password needed.",
-    "callMe": "Call me with a code", "noPassword": "No password. First time here? We'll create your account automatically.",
+    "callMe": "Call me with a code", "sendOtp": "Send OTP", "otpSent": "OTP sent to your number", "resendOtp": "Resend OTP", "noPassword": "No password. First time here? We'll create your account automatically.",
     "enterCode": "Enter the code", "enterCodeSub": "We're calling {{phone}} with your 6-digit code.", "demoHint": "Demo mode — your code is {{code}}",
     "verify": "Verify & continue", "resend": "Call again", "smsFallback": "Send via SMS",
     "nameTitle": "What should we call you?", "nameSub": "This name shows on the reports you submit.", "namePlaceholder": "Your name", "continue": "Continue",

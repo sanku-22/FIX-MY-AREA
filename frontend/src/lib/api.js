@@ -15,6 +15,10 @@ export async function phoneVerify(phone, code) {
   const { data } = await api.post("/auth/phone/verify", { phone, code });
   return data;
 }
+export async function msg91Login(phone, access_token) {
+  const { data } = await api.post("/auth/phone/msg91", { phone, access_token });
+  return data;
+}
 export async function setProfile(name) {
   const { data } = await api.post("/auth/profile", { name });
   return data;

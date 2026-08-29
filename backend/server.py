@@ -22,6 +22,7 @@ from datetime import datetime, timezone, timedelta
 
 from storage import init_storage, put_object, get_object, APP_NAME
 import phone_auth
+import msg91_auth
 import security
 
 mongo_url = os.environ['MONGO_URL']
@@ -147,6 +148,21 @@ def reverse_geocode(lat: float, lng: float) -> dict:
         return {"address": f"Lat {lat:.5f}, Lng {lng:.5f}", "state": "", "district": ""}
 
 
+def _digits(s: str) -> str:
+    return "".join(ch for ch in (s or "") if ch.isdigit())
+
+
+def _extract_msg91_mobile(result: dict) -> str:
+    data = result.get("data") if isinstance(result.get("data"), dict) else result
+    if not isinstance(data, dict):
+        return ""
+    for k in ("mobile", "mobile_number", "identifier", "phone", "number"):
+        v = data.get(k)
+        if v:
+            return _digits(str(v))
+    return ""
+
+
 def search_geocode(q: str, limit: int = 5) -> list:
     try:
         r = requests.get("https://nominatim.openstreetmap.org/search",
@@ -179,6 +195,11 @@ class PhoneStart(BaseModel):
 class PhoneVerify(BaseModel):
     phone: str
     code: str
+
+
+class Msg91Login(BaseModel):
+    phone: str
+    access_token: str
 
 
 class ProfileIn(BaseModel):
@@ -374,6 +395,34 @@ async def phone_verify(payload: PhoneVerify, response: Response):
 @api_router.post("/auth/phone/resend")
 async def phone_resend(payload: PhoneStart):
     return await phone_start(payload)
+
+
+@api_router.post("/auth/phone/msg91")
+async def phone_msg91(payload: Msg91Login, response: Response):
+    phone = payload.phone.strip()
+    if not phone_auth.valid_phone(phone):
+        raise HTTPException(status_code=400, detail="Enter a valid number with country code, e.g. +919876543210")
+    if not msg91_auth.is_configured():
+        raise HTTPException(status_code=503, detail="Phone verification is not configured yet. Please try again later.")
+    try:
+        result = await asyncio.to_thread(msg91_auth.verify_access_token, payload.access_token)
+    except ValueError as e:
+        raise HTTPException(status_code=401, detail=str(e))
+    verified = _extract_msg91_mobile(result)
+    if verified and verified != _digits(phone):
+        logger.warning("[MSG91] verified mobile does not match submitted phone")
+        raise HTTPException(status_code=401, detail="Verified number does not match the login number.")
+    user = await db.users.find_one({"phone": phone}, {"_id": 0})
+    is_new = False
+    if not user:
+        is_new = True
+        user = {"user_id": f"user_{uuid.uuid4().hex[:12]}", "phone": phone, "name": None,
+                "role": "citizen", "home_state": None, "created_at": now_iso()}
+        await db.users.insert_one(dict(user))
+        user.pop("_id", None)
+    token = security.create_token({"sub": user["user_id"], "type": "citizen"}, CITIZEN_TOKEN_MIN)
+    set_cookie(response, "access_token", token, CITIZEN_TOKEN_MIN)
+    return {"user": user, "is_new": is_new, "token": token}
 
 
 @api_router.post("/auth/profile")

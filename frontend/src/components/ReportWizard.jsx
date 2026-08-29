@@ -5,13 +5,10 @@ import { Camera, MapPin, Check, Pencil, Loader2, ArrowLeft, X, ImagePlus, Shield
 import { toast } from "sonner";
 import MapView from "@/components/MapView";
 import { uploadPhoto, createIssue, reverseGeocode } from "@/lib/api";
-import { getDeviceId } from "@/lib/device";
 import { DEFAULT_CENTER } from "@/lib/constants";
-import { useAuth } from "@/context/AuthContext";
 
 export default function ReportWizard({ open, onOpenChange, userLocation, onCreated }) {
   const { t } = useTranslation();
-  const { user } = useAuth();
   const [step, setStep] = useState(1);
   const [preview, setPreview] = useState(null);
   const [photoPath, setPhotoPath] = useState(null);
@@ -20,6 +17,8 @@ export default function ReportWizard({ open, onOpenChange, userLocation, onCreat
   const [verifyError, setVerifyError] = useState("");
   const [pin, setPin] = useState(null);
   const [address, setAddress] = useState("");
+  const [geoState, setGeoState] = useState("");
+  const [geoDistrict, setGeoDistrict] = useState("");
   const [addrLoading, setAddrLoading] = useState(false);
   const [showAddrPopup, setShowAddrPopup] = useState(false);
   const [confirmedLocation, setConfirmedLocation] = useState(false);
@@ -29,7 +28,7 @@ export default function ReportWizard({ open, onOpenChange, userLocation, onCreat
 
   const reset = useCallback(() => {
     setStep(1); setPreview(null); setPhotoPath(null); setFlaggedAi(false);
-    setVerifying(false); setVerifyError(""); setPin(null); setAddress("");
+    setVerifying(false); setVerifyError(""); setPin(null); setAddress(""); setGeoState(""); setGeoDistrict("");
     setShowAddrPopup(false); setConfirmedLocation(false); setDescription("");
     setSubmitting(false); setSuccess(false);
   }, []);
@@ -50,6 +49,7 @@ export default function ReportWizard({ open, onOpenChange, userLocation, onCreat
           not_civic: "wizard.reject_not_civic",
           low_confidence: "wizard.reject_low_confidence",
           ai_generated: "wizard.reject_ai_generated",
+          review: "wizard.reject_review",
         };
         const key = codeMap[res.reject_code];
         setVerifyError(key ? t(key) : res.reason || t("wizard.notRelevant"));
@@ -64,8 +64,9 @@ export default function ReportWizard({ open, onOpenChange, userLocation, onCreat
 
   const openAddressPopup = async () => {
     setShowAddrPopup(true); setAddrLoading(true);
-    const addr = await reverseGeocode(pin[0], pin[1]);
-    setAddress(addr); setAddrLoading(false);
+    const res = await reverseGeocode(pin[0], pin[1]);
+    setAddress(res.address); setGeoState(res.state || ""); setGeoDistrict(res.district || "");
+    setAddrLoading(false);
   };
 
   const confirmAddress = () => { setShowAddrPopup(false); setConfirmedLocation(true); setStep(3); };
@@ -76,8 +77,8 @@ export default function ReportWizard({ open, onOpenChange, userLocation, onCreat
     try {
       const issue = await createIssue({
         photo_path: photoPath, latitude: pin[0], longitude: pin[1], address_text: address,
-        description: description.trim(), reporter_id: getDeviceId(),
-        reporter_name: user?.name || "Anonymous", flagged_ai_generated: flaggedAi,
+        description: description.trim(), state: geoState, district: geoDistrict,
+        flagged_ai_generated: flaggedAi,
       });
       setSuccess(true);
       setTimeout(() => { onOpenChange(false); onCreated && onCreated(issue); }, 1800);

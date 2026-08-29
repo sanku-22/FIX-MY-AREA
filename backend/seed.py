@@ -59,6 +59,7 @@ async def main():
             "latitude": s["lat"], "longitude": s["lng"],
             "address_text": s["addr"],
             "description": s["desc"],
+            "state": "Haryana", "district": "Gurugram",
             "category": s["category"],
             "status": s["status"],
             "confirm_count": s["confirms"],

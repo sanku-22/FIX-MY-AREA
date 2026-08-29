@@ -1,13 +1,15 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from "react";
-import { api, getMe, postSession, logout as apiLogout } from "@/lib/api";
+import { getMe, logout as apiLogout } from "@/lib/api";
+import PhoneAuth from "@/components/PhoneAuth";
 
 const AuthContext = createContext(null);
 
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [showLogin, setShowLogin] = useState(false);
 
-  const checkAuth = useCallback(async () => {
+  const refresh = useCallback(async () => {
     try {
       const u = await getMe();
       setUser(u);
@@ -18,40 +20,19 @@ export function AuthProvider({ children }) {
     }
   }, []);
 
-  useEffect(() => {
-    const hash = window.location.hash || "";
-    if (hash.includes("session_id=")) {
-      const sessionId = hash.split("session_id=")[1].split("&")[0];
-      (async () => {
-        try {
-          const u = await postSession(sessionId);
-          setUser(u);
-        } catch (e) {
-          /* ignore */
-        } finally {
-          window.history.replaceState(null, "", window.location.pathname + window.location.search);
-          setLoading(false);
-        }
-      })();
-      return;
-    }
-    checkAuth();
-  }, [checkAuth]);
+  useEffect(() => { refresh(); }, [refresh]);
 
-  const login = () => {
-    // REMINDER: DO NOT HARDCODE THE URL, OR ADD ANY FALLBACKS OR REDIRECT URLS, THIS BREAKS THE AUTH
-    const redirectUrl = window.location.origin + "/";
-    window.location.href = `https://auth.emergentagent.com/?redirect=${encodeURIComponent(redirectUrl)}`;
-  };
-
-  const logout = async () => {
-    await apiLogout();
-    setUser(null);
-  };
+  const openLogin = useCallback(() => setShowLogin(true), []);
+  const logout = useCallback(async () => { await apiLogout(); setUser(null); }, []);
 
   return (
-    <AuthContext.Provider value={{ user, loading, login, logout }}>
+    <AuthContext.Provider value={{ user, loading, openLogin, logout, refresh, setUser }}>
       {children}
+      <PhoneAuth
+        open={showLogin}
+        onOpenChange={setShowLogin}
+        onAuthed={(u) => { setUser(u); setShowLogin(false); }}
+      />
     </AuthContext.Provider>
   );
 }

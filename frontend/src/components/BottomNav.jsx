@@ -1,7 +1,7 @@
 import React from "react";
 import { NavLink, useLocation } from "react-router-dom";
 import { useTranslation } from "react-i18next";
-import { Map, ListChecks, ShieldCheck } from "lucide-react";
+import { Map, ListChecks } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 export default function BottomNav() {
@@ -12,7 +12,6 @@ export default function BottomNav() {
   const items = [
     { to: "/", label: t("nav.map"), icon: Map, testid: "nav-map" },
     { to: "/my-issues", label: t("nav.myIssues"), icon: ListChecks, testid: "nav-my-issues" },
-    { to: "/admin", label: t("nav.admin"), icon: ShieldCheck, testid: "nav-admin" },
   ];
 
   return (
@@ -21,15 +20,8 @@ export default function BottomNav() {
         const Icon = it.icon;
         const active = it.to === "/" ? loc.pathname === "/" : loc.pathname.startsWith(it.to);
         return (
-          <NavLink
-            key={it.to}
-            to={it.to}
-            data-testid={it.testid}
-            className={cn(
-              "flex flex-col items-center gap-1 rounded-xl px-4 py-1.5 text-xs font-semibold transition-colors",
-              active ? "text-[#1f7a72]" : "text-[#9a9a9f]",
-            )}
-          >
+          <NavLink key={it.to} to={it.to} data-testid={it.testid}
+            className={cn("flex flex-col items-center gap-1 rounded-xl px-8 py-1.5 text-xs font-semibold transition-colors", active ? "text-[#1f7a72]" : "text-[#9a9a9f]")}>
             <Icon className="h-5 w-5" strokeWidth={active ? 2.5 : 2} />
             {it.label}
           </NavLink>

@@ -8,14 +8,13 @@ import { fetchIssue, confirmIssue, addComment, buildPhotoUrl } from "@/lib/api";
 import { categoryOf, TIMELINE_STEPS } from "@/lib/constants";
 import { StatusPill } from "@/components/StatusPill";
 import { timeAgo } from "@/lib/geo";
-import { getDeviceId } from "@/lib/device";
 import { useAuth } from "@/context/AuthContext";
 
 export default function IssueDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
   const { t } = useTranslation();
-  const { user } = useAuth();
+  const { user, openLogin } = useAuth();
   const [commentText, setCommentText] = useState("");
   const [posting, setPosting] = useState(false);
   const [confirming, setConfirming] = useState(false);
@@ -29,11 +28,14 @@ export default function IssueDetail() {
   const cat = categoryOf(issue.category);
 
   const onConfirm = async () => {
+    if (!user) { openLogin(); return; }
     setConfirming(true);
-    const res = await confirmIssue(issue.id, getDeviceId());
-    if (res.already) toast(t("detail.alreadyConfirmed"));
-    else toast.success(t("detail.confirmThanks"));
-    await refetch(); setConfirming(false);
+    try {
+      const res = await confirmIssue(issue.id);
+      if (res.already) toast(t("detail.alreadyConfirmed")); else toast.success(t("detail.confirmThanks"));
+      await refetch();
+    } catch (e) { if (e.response?.status === 401) openLogin(); }
+    setConfirming(false);
   };
 
   const onShare = async () => {
@@ -45,10 +47,14 @@ export default function IssueDetail() {
   };
 
   const postComment = async () => {
+    if (!user) { openLogin(); return; }
     if (!commentText.trim()) return;
     setPosting(true);
-    await addComment(issue.id, { text: commentText, user_id: getDeviceId(), user_name: user?.name || "Anonymous" });
-    setCommentText(""); await refetch(); setPosting(false);
+    try {
+      await addComment(issue.id, commentText);
+      setCommentText(""); await refetch();
+    } catch (e) { if (e.response?.status === 401) openLogin(); }
+    setPosting(false);
   };
 
   const reachedIndex = (() => {
@@ -64,9 +70,7 @@ export default function IssueDetail() {
       <div className="relative h-72 w-full">
         <img src={buildPhotoUrl(issue.photo_path)} alt={t(`categories.${issue.category}`, cat.label)} className="h-full w-full object-cover" />
         <div className="absolute inset-0 bg-gradient-to-t from-black/45 to-transparent" />
-        <button data-testid="detail-back-btn" onClick={() => navigate("/")} className="absolute left-4 top-[max(env(safe-area-inset-top),14px)] flex h-11 w-11 items-center justify-center rounded-full bg-white/95 backdrop-blur-xl shadow-md">
-          <ArrowLeft className="h-5 w-5" />
-        </button>
+        <button data-testid="detail-back-btn" onClick={() => navigate("/")} className="absolute left-4 top-[max(env(safe-area-inset-top),14px)] flex h-11 w-11 items-center justify-center rounded-full bg-white/95 backdrop-blur-xl shadow-md"><ArrowLeft className="h-5 w-5" /></button>
         <div className="absolute bottom-4 left-4 flex items-center gap-2">
           <StatusPill status={issue.status} className="bg-white/95" />
           <span className="rounded-full bg-black/40 px-3 py-1 font-mono-tech text-xs text-white backdrop-blur">#{issue.short_id}</span>
@@ -75,16 +79,12 @@ export default function IssueDetail() {
 
       <div className="px-5 pt-5">
         <div className="flex items-center gap-2">
-          <span className="rounded-full px-3 py-1 text-xs font-bold uppercase tracking-wider" style={{ backgroundColor: `${cat.color}1A`, color: cat.color }}>
-            {t(`categories.${issue.category}`, cat.label)}
-          </span>
+          <span className="rounded-full px-3 py-1 text-xs font-bold uppercase tracking-wider" style={{ backgroundColor: `${cat.color}1A`, color: cat.color }}>{t(`categories.${issue.category}`, cat.label)}</span>
           <span className="flex items-center gap-1 text-xs text-[#6b6b70]"><Clock className="h-3.5 w-3.5" /> {timeAgo(issue.created_at)}</span>
         </div>
 
         {issue.flagged_ai_generated && (
-          <div data-testid="ai-flagged-banner" className="mt-3 flex items-center gap-2 rounded-xl bg-[#fbeee2] p-3 text-xs font-semibold text-[#b06a2c]">
-            <ShieldAlert className="h-4 w-4" /> {t("detail.aiFlagged")}
-          </div>
+          <div data-testid="ai-flagged-banner" className="mt-3 flex items-center gap-2 rounded-xl bg-[#fbeee2] p-3 text-xs font-semibold text-[#b06a2c]"><ShieldAlert className="h-4 w-4" /> {t("detail.aiFlagged")}</div>
         )}
 
         <p className="mt-3 text-base leading-relaxed text-[#2a2a2c]">{issue.description || t("detail.noDescription")}</p>
@@ -95,16 +95,10 @@ export default function IssueDetail() {
         </div>
 
         <div className="mt-4 flex gap-3">
-          <button data-testid="confirm-issue-btn" onClick={onConfirm} disabled={confirming} className="fx-btn fx-btn-primary flex-1">
-            <ThumbsUp className="h-4 w-4" /> {t("detail.confirm")} · {issue.confirm_count}
-          </button>
-          <button data-testid="share-issue-btn" onClick={onShare} className="fx-btn fx-btn-secondary px-5">
-            <Share2 className="h-4 w-4" /> {t("detail.share")}
-          </button>
+          <button data-testid="confirm-issue-btn" onClick={onConfirm} disabled={confirming} className="fx-btn fx-btn-primary flex-1"><ThumbsUp className="h-4 w-4" /> {t("detail.confirm")} · {issue.confirm_count}</button>
+          <button data-testid="share-issue-btn" onClick={onShare} className="fx-btn fx-btn-secondary px-5"><Share2 className="h-4 w-4" /> {t("detail.share")}</button>
         </div>
-        {issue.confirm_count > 0 && (
-          <p className="mt-2 text-center text-xs text-[#6b6b70]">{t("detail.confirmed", { count: issue.confirm_count })}</p>
-        )}
+        {issue.confirm_count > 0 && <p className="mt-2 text-center text-xs text-[#6b6b70]">{t("detail.confirmed", { count: issue.confirm_count })}</p>}
 
         <h3 className="mt-8 font-heading text-lg font-bold">{t("detail.statusTimeline")}</h3>
         <div className="mt-3 rounded-2xl border border-[#e6e3dc] bg-white p-5">
@@ -113,9 +107,7 @@ export default function IssueDetail() {
             return (
               <div key={step.key} className="flex gap-3">
                 <div className="flex flex-col items-center">
-                  <div className="flex h-6 w-6 items-center justify-center rounded-full" style={{ backgroundColor: done ? "#1f7a72" : "#e6e3dc", color: "#fff" }}>
-                    {done && <Check className="h-3.5 w-3.5" />}
-                  </div>
+                  <div className="flex h-6 w-6 items-center justify-center rounded-full" style={{ backgroundColor: done ? "#1f7a72" : "#e6e3dc", color: "#fff" }}>{done && <Check className="h-3.5 w-3.5" />}</div>
                   {i < TIMELINE_STEPS.length - 1 && <div className="my-1 w-0.5 flex-1" style={{ minHeight: 24, backgroundColor: i < reachedIndex ? "#1f7a72" : "#e6e3dc" }} />}
                 </div>
                 <div className="pb-4">
@@ -127,17 +119,12 @@ export default function IssueDetail() {
           })}
         </div>
 
-        <h3 className="mt-8 flex items-center gap-2 font-heading text-lg font-bold">
-          <MessageSquare className="h-5 w-5" /> {t("detail.comments", { count: issue.comments.length })}
-        </h3>
+        <h3 className="mt-8 flex items-center gap-2 font-heading text-lg font-bold"><MessageSquare className="h-5 w-5" /> {t("detail.comments", { count: issue.comments.length })}</h3>
         <div className="mt-3 space-y-2">
           {issue.comments.length === 0 && <p className="text-sm text-[#6b6b70]">{t("detail.beFirst")}</p>}
           {issue.comments.map((c) => (
             <div key={c.id} data-testid={`comment-${c.id}`} className="rounded-xl border border-[#e6e3dc] bg-white p-3.5">
-              <div className="flex items-center justify-between">
-                <span className="text-sm font-semibold">{c.user_name}</span>
-                <span className="text-[11px] text-[#6b6b70]">{timeAgo(c.created_at)}</span>
-              </div>
+              <div className="flex items-center justify-between"><span className="text-sm font-semibold">{c.user_name}</span><span className="text-[11px] text-[#6b6b70]">{timeAgo(c.created_at)}</span></div>
               <p className="mt-1 text-sm leading-relaxed text-[#4a4a4d]">{c.text}</p>
             </div>
           ))}
@@ -145,9 +132,7 @@ export default function IssueDetail() {
 
         <div className="mt-3 flex items-center gap-2">
           <input data-testid="comment-input" value={commentText} onChange={(e) => setCommentText(e.target.value)} onKeyDown={(e) => e.key === "Enter" && postComment()} placeholder={t("detail.addComment")} className="fx-input flex-1 px-4 py-3 text-sm" />
-          <button data-testid="post-comment-btn" onClick={postComment} disabled={posting || !commentText.trim()} className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-[#1f7a72] text-white disabled:opacity-40">
-            {posting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
-          </button>
+          <button data-testid="post-comment-btn" onClick={postComment} disabled={posting || !commentText.trim()} className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-[#1f7a72] text-white disabled:opacity-40">{posting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}</button>
         </div>
       </div>
     </div>
